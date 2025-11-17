@@ -157,7 +157,8 @@
 .jobForm {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  min-height: 0;
 }
 
 .formGrid {
@@ -448,8 +449,9 @@
   padding: 2rem 2.25rem 2.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.25rem;
   max-height: 90vh;
+  overflow: hidden;
 }
 
 .modalHeader {
@@ -468,6 +470,13 @@
 .modalDescription {
   margin: 0.35rem 0 0;
   color: #475569;
+}
+
+.modalBody {
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .closeButton {
@@ -496,6 +505,11 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+  position: sticky;
+  bottom: 0;
+  padding-top: 1rem;
+  margin-top: auto;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 60%);
 }
 
 .secondaryAction {
@@ -520,6 +534,350 @@
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.tertiaryAction {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0.6rem 1rem;
+  border-radius: 0.65rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.tertiaryAction:hover {
+  color: #1d4ed8;
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.tertiaryAction:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.volumePickerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.volumeBrowseButton {
+  border: 1px solid #1d4ed8;
+  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+  color: #ffffff;
+  padding: 0.7rem 1.2rem;
+  border-radius: 0.8rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.volumeBrowseButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+}
+
+.volumeBrowseButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.inputVolumePreview {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+}
+
+.inputVolumeSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.inputVolumeTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.inputVolumeMeta {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.inputVolumeActions {
+  display: flex;
+  align-items: center;
+}
+
+.volumeModalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.25rem;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1100;
+}
+
+.volumeModal {
+  width: min(880px, 96%);
+  background: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 28px 65px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.volumeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 2.25rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.volumeHeader h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #0f172a;
+}
+
+.volumeCloseButton {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.volumeCloseButton:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+.volumeBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.35rem 2.25rem 1.5rem;
+  overflow: hidden;
+}
+
+.volumeSearch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.volumeSearch label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.volumeSearch input {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.volumeSearch input:focus-visible {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.2);
+}
+
+.volumeStatus {
+  padding: 1.1rem 1rem;
+  text-align: center;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 0.9rem;
+  border: 1px solid #e2e8f0;
+  margin: 0.25rem 0 0;
+}
+
+.volumeStatusError {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.volumeBrowser {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) minmax(0, 2fr);
+  gap: 1rem;
+  min-height: 320px;
+}
+
+.volumeList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.volumeListButton {
+  width: 100%;
+  border: 1px solid transparent;
+  background: #ffffff;
+  border-radius: 0.7rem;
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border 0.18s ease, background 0.18s ease;
+}
+
+.volumeListButton:hover,
+.volumeListButton:focus {
+  outline: none;
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.16);
+}
+
+.volumeListButtonActive {
+  border-color: #2563eb;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.18);
+  background: #eff6ff;
+}
+
+.volumeListTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.volumeListMeta {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.volumePreviewPanel {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 320px;
+}
+
+.volumePreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.volumePreviewTitle {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.volumePreviewMeta {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.volumeObjects {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.volumeObjectsHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.volumeBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.volumeObjectsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.volumeObjectRow {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: #f8fafc;
+}
+
+.volumeObjectKey {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.volumeObjectMeta {
+  font-size: 0.85rem;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.volumeFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 2.25rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 
