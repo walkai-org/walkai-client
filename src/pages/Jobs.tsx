@@ -41,6 +41,29 @@ type JobSubmissionPayload = {
   gpu: GPUProfile
   storage: number
   secretNames: string[]
+  inputId: number | null
+}
+
+type InputVolume = {
+  id: number
+  pvc_name: string
+  size: number
+  key_prefix: string | null
+  is_input: boolean
+}
+
+type VolumeObject = {
+  key: string
+  size: number
+  last_modified: string
+  etag: string
+}
+
+type VolumeObjectsResponse = {
+  prefix: string | null
+  objects: VolumeObject[]
+  truncated: boolean
+  next_continuation_token: string | null
 }
 
 const DEFAULT_STORAGE_GB = 1
@@ -48,6 +71,8 @@ const SUCCESS_MESSAGE_TIMEOUT_MS = 4_000
 const DEFAULT_GPU_PROFILE = (GPU_PROFILES.find((profile) => profile === '1g.10gb') ?? GPU_PROFILES[0]) as GPUProfile
 const SECRETS_STALE_TIME_MS = 60_000
 const SECRET_DETAILS_STALE_TIME_MS = 60_000
+const INPUT_VOLUMES_STALE_TIME_MS = 15_000
+const INPUT_VOLUME_OBJECTS_MAX_KEYS = 50
 
 const isJobRun = (value: unknown): value is JobRun => {
   if (!value || typeof value !== 'object') return false
@@ -165,6 +190,94 @@ const fetchJobImages = async (): Promise<JobImageOption[]> => {
   return payload
 }
 
+const isInputVolume = (value: unknown): value is InputVolume => {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return (
+    typeof record.id === 'number' &&
+    typeof record.pvc_name === 'string' &&
+    typeof record.size === 'number' &&
+    (typeof record.key_prefix === 'string' || record.key_prefix === null) &&
+    typeof record.is_input === 'boolean'
+  )
+}
+
+const fetchInputVolumes = async (): Promise<InputVolume[]> => {
+  const params = new URLSearchParams({ is_input: 'true' })
+  const response = await fetch(`${API_BASE}/volumes/?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load input volumes (${response.status})`)
+  }
+
+  let payload: unknown
+
+  try {
+    payload = await response.json()
+  } catch {
+    throw new Error('Received unreadable volumes response. Please try again.')
+  }
+
+  if (!Array.isArray(payload) || !payload.every(isInputVolume)) {
+    throw new Error('Received malformed volumes response. Please contact support.')
+  }
+
+  return payload
+}
+
+const isVolumeObject = (value: unknown): value is VolumeObject => {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return (
+    typeof record.key === 'string' &&
+    typeof record.size === 'number' &&
+    typeof record.last_modified === 'string' &&
+    typeof record.etag === 'string'
+  )
+}
+
+const isVolumeObjectsResponse = (value: unknown): value is VolumeObjectsResponse => {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  const { prefix, objects, truncated, next_continuation_token: nextToken } = record
+
+  return (
+    (prefix === null || typeof prefix === 'string') &&
+    Array.isArray(objects) &&
+    objects.every(isVolumeObject) &&
+    typeof truncated === 'boolean' &&
+    (nextToken === null || typeof nextToken === 'string')
+  )
+}
+
+const fetchInputVolumeObjects = async (volumeId: number): Promise<VolumeObjectsResponse> => {
+  const params = new URLSearchParams({ max_keys: String(INPUT_VOLUME_OBJECTS_MAX_KEYS) })
+  const response = await fetch(`${API_BASE}/volumes/${volumeId}/objects?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to load objects for volume #${volumeId} (${response.status})`)
+  }
+
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    throw new Error('Received unreadable volume object response. Please try again.')
+  }
+
+  if (!isVolumeObjectsResponse(payload)) {
+    throw new Error('Received malformed volume objects response. Please contact support.')
+  }
+
+  return payload
+}
+
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -175,6 +288,15 @@ const formatDateTime = (value: string | null | undefined): string => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return dateTimeFormatter.format(date)
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** exponent
+  return `${value.toFixed(value >= 100 || exponent === 0 ? 0 : 1)} ${units[exponent]}`
 }
 
 const formatStatusLabel = (status: string): string =>
@@ -223,10 +345,21 @@ const Jobs = (): JSX.Element => {
     refetchOnWindowFocus: false,
   })
 
+  const inputVolumesQuery = useQuery<InputVolume[], Error>({
+    queryKey: ['volumes', 'inputs'],
+    queryFn: fetchInputVolumes,
+    staleTime: INPUT_VOLUMES_STALE_TIME_MS,
+    refetchOnWindowFocus: false,
+  })
+
   const [imageInput, setImageInput] = useState('')
   const [gpuProfile, setGpuProfile] = useState<GPUProfile>(DEFAULT_GPU_PROFILE)
   const [storageInput, setStorageInput] = useState(String(DEFAULT_STORAGE_GB))
   const [selectedSecretNames, setSelectedSecretNames] = useState<string[]>([])
+  const [selectedInputVolumeId, setSelectedInputVolumeId] = useState<number | null>(null)
+  const [volumePreviewId, setVolumePreviewId] = useState<number | null>(null)
+  const [isVolumesModalOpen, setIsVolumesModalOpen] = useState(false)
+  const [volumeSearchTerm, setVolumeSearchTerm] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -234,10 +367,13 @@ const Jobs = (): JSX.Element => {
   const [registrySearchTerm, setRegistrySearchTerm] = useState('')
 
   const createJobMutation = useMutation<void, Error, JobSubmissionPayload>({
-    mutationFn: async ({ image, gpu, storage, secretNames }) => {
+    mutationFn: async ({ image, gpu, storage, secretNames, inputId }) => {
       const payload: Record<string, unknown> = { image, gpu, storage }
       if (secretNames.length > 0) {
         payload.secret_names = secretNames
+      }
+      if (typeof inputId === 'number') {
+        payload.input_id = inputId
       }
 
       const response = await fetch(`${API_BASE}/jobs/`, {
@@ -281,6 +417,25 @@ const Jobs = (): JSX.Element => {
   const jobs = jobsQuery.data ?? []
   const jobImageOptions = useMemo(() => jobImagesQuery.data ?? [], [jobImagesQuery.data])
   const availableSecrets = secretsQuery.data ?? []
+  const inputVolumeOptions = inputVolumesQuery.data ?? []
+  const selectedInputVolume = useMemo(
+    () => inputVolumeOptions.find((volume) => volume.id === selectedInputVolumeId) ?? null,
+    [inputVolumeOptions, selectedInputVolumeId],
+  )
+  const previewVolume = useMemo(
+    () => inputVolumeOptions.find((volume) => volume.id === volumePreviewId) ?? null,
+    [inputVolumeOptions, volumePreviewId],
+  )
+  const filteredInputVolumeOptions = useMemo(() => {
+    const term = volumeSearchTerm.trim().toLowerCase()
+    if (!term) return inputVolumeOptions
+    return inputVolumeOptions.filter((volume) => {
+      const pvc = volume.pvc_name.toLowerCase()
+      const id = String(volume.id)
+      const prefix = volume.key_prefix?.toLowerCase() ?? ''
+      return pvc.includes(term) || prefix.includes(term) || id.includes(term)
+    })
+  }, [inputVolumeOptions, volumeSearchTerm])
   const isSubmittingJob = createJobMutation.isPending
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const registrySearchInputRef = useRef<HTMLInputElement | null>(null)
@@ -295,6 +450,27 @@ const Jobs = (): JSX.Element => {
     })
   }, [jobImageOptions, registrySearchTerm])
   const isRegistryAvailable = jobImageOptions.length > 0
+  useEffect(() => {
+    if (!isVolumesModalOpen) return
+    if (typeof selectedInputVolumeId === 'number') {
+      setVolumePreviewId(selectedInputVolumeId)
+      return
+    }
+    const firstOption = inputVolumeOptions[0]
+    setVolumePreviewId(firstOption ? firstOption.id : null)
+  }, [inputVolumeOptions, isVolumesModalOpen, selectedInputVolumeId])
+
+  const volumeObjectsQuery = useQuery<VolumeObjectsResponse, Error>({
+    queryKey: ['volumes', 'objects', 'preview', volumePreviewId],
+    queryFn: () => fetchInputVolumeObjects(volumePreviewId as number),
+    staleTime: INPUT_VOLUMES_STALE_TIME_MS,
+    refetchOnWindowFocus: false,
+    enabled: isVolumesModalOpen && typeof volumePreviewId === 'number',
+  })
+  const previewObjects = volumeObjectsQuery.data?.objects ?? []
+  const previewObjectsTruncated = volumeObjectsQuery.data?.truncated ?? false
+  const previewPrefix =
+    volumeObjectsQuery.data?.prefix ?? (previewVolume ? previewVolume.key_prefix ?? null : null)
   const selectedSecretDetailQueries = useQueries({
     queries: selectedSecretNames.map((secretName) => ({
       queryKey: ['secrets', 'detail', secretName],
@@ -356,8 +532,12 @@ const Jobs = (): JSX.Element => {
     setStorageInput(String(DEFAULT_STORAGE_GB))
     setImageInput('')
     setSelectedSecretNames([])
+    setSelectedInputVolumeId(null)
+    setVolumePreviewId(null)
+    setVolumeSearchTerm('')
     setRegistrySearchTerm('')
     setIsRegistryModalOpen(false)
+    setIsVolumesModalOpen(false)
   }
 
   const handleOpenModal = () => {
@@ -425,6 +605,31 @@ const Jobs = (): JSX.Element => {
     if (successMessage) setSuccessMessage(null)
   }
 
+  const handleOpenVolumesModal = () => {
+    setIsVolumesModalOpen(true)
+    setVolumeSearchTerm('')
+    setFormError(null)
+    if (successMessage) setSuccessMessage(null)
+  }
+
+  const handleCloseVolumesModal = () => {
+    setIsVolumesModalOpen(false)
+  }
+
+  const handleVolumeSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setVolumeSearchTerm(event.target.value)
+  }
+
+  const handleVolumePreviewSelect = (volumeId: number) => {
+    setVolumePreviewId(volumeId)
+  }
+
+  const handleConfirmVolumeSelection = () => {
+    if (typeof volumePreviewId !== 'number') return
+    setSelectedInputVolumeId(volumePreviewId)
+    setIsVolumesModalOpen(false)
+  }
+
   const handleSecretToggle = (event: ChangeEvent<HTMLInputElement>, secretName: string) => {
     const { checked } = event.target
     setSelectedSecretNames((prev) => {
@@ -459,11 +664,13 @@ const Jobs = (): JSX.Element => {
         gpu: gpuProfile,
         storage: parsedStorage,
         secretNames: selectedSecretNames,
+        inputId: selectedInputVolumeId,
       })
       setSuccessMessage('Job submitted successfully.')
       setIsModalOpen(false)
       setIsRegistryModalOpen(false)
       setFormError(null)
+      setSelectedInputVolumeId(null)
       setSelectedSecretNames([])
     } catch (error) {
       const message =
@@ -582,7 +789,7 @@ const Jobs = (): JSX.Element => {
                 <div>
                   <h2 id="submit-job-modal-title">Submit Job</h2>
                   <p className={styles.modalDescription}>
-                    Define the runtime image, GPU profile, and storage requirements for your workload.
+                    Define the runtime image, GPU profile, storage requirements, and optional input volume for your workload.
                   </p>
                 </div>
                 <button
@@ -603,7 +810,8 @@ const Jobs = (): JSX.Element => {
               ) : null}
 
               <form className={styles.jobForm} onSubmit={handleJobSubmit} noValidate>
-                <div className={styles.formGrid}>
+                <div className={styles.modalBody}>
+                  <div className={styles.formGrid}>
                   <label className={`${styles.formField} ${styles.fullWidthField}`}>
                     <span className={styles.fieldLabel}>Container image</span>
                     <div className={styles.imageFieldRow}>
@@ -670,72 +878,119 @@ const Jobs = (): JSX.Element => {
                     <span className={styles.fieldHint}>Requested storage capacity for the job output.</span>
                   </label>
 
-                  <div className={`${styles.formField} ${styles.fullWidthField}`}>
-                    <span className={styles.fieldLabel}>Secrets (optional)</span>
-                    <span className={styles.fieldHint}>Attach managed secrets that should be available to this job.</span>
+                  <label className={styles.formField}>
+                    <span className={styles.fieldLabel}>Input volume (optional)</span>
+                    <span className={styles.fieldHint}>
+                      Attach an existing input volume and inspect its objects before selecting it.
+                    </span>
+                    <div className={styles.volumePickerRow}>
+                      <button
+                        type="button"
+                        className={styles.volumeBrowseButton}
+                        onClick={handleOpenVolumesModal}
+                        disabled={isSubmittingJob || inputVolumesQuery.isPending}
+                      >
+                        Browse input volumes
+                      </button>
+                      <span
+                        className={
+                          inputVolumesQuery.isError
+                            ? `${styles.fieldHint} ${styles.fieldHintError}`
+                            : styles.fieldHint
+                        }
+                      >
+                        {inputVolumesQuery.isPending
+                          ? 'Loading input volumes…'
+                          : inputVolumesQuery.isError
+                            ? `Failed to load volumes: ${getErrorMessage(inputVolumesQuery.error)}`
+                            : selectedInputVolume
+                              ? `Selected #${selectedInputVolume.id} (${selectedInputVolume.pvc_name})`
+                              : 'No volume selected.'}
+                      </span>
+                    </div>
 
-                    {secretsQuery.isPending ? (
-                      <p className={styles.secretFieldStatus}>Loading secrets…</p>
-                    ) : secretsQuery.isError ? (
-                      <p className={`${styles.secretFieldStatus} ${styles.secretFieldStatusError}`}>
-                        Failed to load secrets: {getErrorMessage(secretsQuery.error)}
-                      </p>
-                    ) : availableSecrets.length === 0 ? (
-                      <p className={styles.fieldHint}>No secrets are available to attach.</p>
-                    ) : (
-                      <div className={styles.secretList} role="group" aria-label="Available secrets">
-                        {availableSecrets.map(({ name }) => {
-                          const isChecked = selectedSecretNames.includes(name)
-                          return (
-                            <label key={name} className={styles.secretOption}>
-                              <input
-                                type="checkbox"
-                                value={name}
-                                checked={isChecked}
-                                onChange={(event) => handleSecretToggle(event, name)}
-                                disabled={isSubmittingJob}
-                              />
-                              <span className={styles.secretOptionName}>{name}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {selectedSecretNames.length > 0 ? (
-                      <div className={styles.selectedSecrets}>
-                        <span className={styles.selectedSecretsHeading}>Selected secrets</span>
-                        <ul className={styles.selectedSecretsList}>
-                          {selectedSecretDetails.map(({ secretName, query }) => {
-                            const detailQuery = query ?? null
-                            return (
-                              <li key={secretName} className={styles.selectedSecretItem}>
-                                <div className={styles.selectedSecretHeader}>
-                                  <span className={styles.secretOptionName}>{secretName}</span>
-                                </div>
-                                {detailQuery?.isPending ? (
-                                  <span className={styles.secretMeta}>Loading keys…</span>
-                                ) : detailQuery?.isError ? (
-                                  <span className={`${styles.secretMeta} ${styles.secretMetaError}`}>
-                                    Failed to load keys: {getErrorMessage(detailQuery.error)}
-                                  </span>
-                                ) : detailQuery?.data && detailQuery.data.keys.length > 0 ? (
-                                  <ul className={styles.secretKeysList}>
-                                    {detailQuery.data.keys.map((key) => (
-                                      <li key={key} className={styles.secretKeyPill}>
-                                        {key}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <span className={styles.secretMeta}>No keys configured.</span>
-                                )}
-                              </li>
-                            )
-                          })}
-                        </ul>
+                    {selectedInputVolume ? (
+                      <div className={styles.inputVolumePreview}>
+                        <div className={styles.inputVolumeSummary}>
+                          <div className={styles.inputVolumeTitle}>
+                            #{selectedInputVolume.id} · {selectedInputVolume.pvc_name}
+                          </div>
+                          <div className={styles.inputVolumeMeta}>
+                            Size: {selectedInputVolume.size} Gi · Prefix:{' '}
+                            <span className={styles.monospace}>{selectedInputVolume.key_prefix ?? '—'}</span>
+                          </div>
+                        </div>
                       </div>
                     ) : null}
+                  </label>
+
+                    <div className={`${styles.formField} ${styles.fullWidthField}`}>
+                      <span className={styles.fieldLabel}>Secrets (optional)</span>
+                      <span className={styles.fieldHint}>Attach managed secrets that should be available to this job.</span>
+
+                      {secretsQuery.isPending ? (
+                        <p className={styles.secretFieldStatus}>Loading secrets…</p>
+                      ) : secretsQuery.isError ? (
+                        <p className={`${styles.secretFieldStatus} ${styles.secretFieldStatusError}`}>
+                          Failed to load secrets: {getErrorMessage(secretsQuery.error)}
+                        </p>
+                      ) : availableSecrets.length === 0 ? (
+                        <p className={styles.fieldHint}>No secrets are available to attach.</p>
+                      ) : (
+                        <div className={styles.secretList} role="group" aria-label="Available secrets">
+                          {availableSecrets.map(({ name }) => {
+                            const isChecked = selectedSecretNames.includes(name)
+                            return (
+                              <label key={name} className={styles.secretOption}>
+                                <input
+                                  type="checkbox"
+                                  value={name}
+                                  checked={isChecked}
+                                  onChange={(event) => handleSecretToggle(event, name)}
+                                  disabled={isSubmittingJob}
+                                />
+                                <span className={styles.secretOptionName}>{name}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {selectedSecretNames.length > 0 ? (
+                        <div className={styles.selectedSecrets}>
+                          <span className={styles.selectedSecretsHeading}>Selected secrets</span>
+                          <ul className={styles.selectedSecretsList}>
+                            {selectedSecretDetails.map(({ secretName, query }) => {
+                              const detailQuery = query ?? null
+                              return (
+                                <li key={secretName} className={styles.selectedSecretItem}>
+                                  <div className={styles.selectedSecretHeader}>
+                                    <span className={styles.secretOptionName}>{secretName}</span>
+                                  </div>
+                                  {detailQuery?.isPending ? (
+                                    <span className={styles.secretMeta}>Loading keys…</span>
+                                  ) : detailQuery?.isError ? (
+                                    <span className={`${styles.secretMeta} ${styles.secretMetaError}`}>
+                                      Failed to load keys: {getErrorMessage(detailQuery.error)}
+                                    </span>
+                                  ) : detailQuery?.data && detailQuery.data.keys.length > 0 ? (
+                                    <ul className={styles.secretKeysList}>
+                                      {detailQuery.data.keys.map((key) => (
+                                        <li key={key} className={styles.secretKeyPill}>
+                                          {key}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <span className={styles.secretMeta}>No keys configured.</span>
+                                  )}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -825,6 +1080,144 @@ const Jobs = (): JSX.Element => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isVolumesModalOpen ? (
+        <div
+          className={styles.volumeModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="volume-modal-title"
+          onClick={handleCloseVolumesModal}
+        >
+          <div className={styles.volumeModal} onClick={(event) => event.stopPropagation()}>
+            <header className={styles.volumeHeader}>
+              <h3 id="volume-modal-title">Browse Input Volumes</h3>
+              <button
+                type="button"
+                className={styles.volumeCloseButton}
+                onClick={handleCloseVolumesModal}
+                aria-label="Close input volume browser"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className={styles.volumeBody}>
+              <div className={styles.volumeSearch}>
+                <label htmlFor="volume-search">Filter volumes</label>
+                <input
+                  id="volume-search"
+                  type="search"
+                  value={volumeSearchTerm}
+                  placeholder="Search by ID, PVC name, or key prefix"
+                  onChange={handleVolumeSearchChange}
+                />
+              </div>
+
+              {inputVolumesQuery.isPending ? (
+                <p className={styles.volumeStatus}>Loading input volumes…</p>
+              ) : inputVolumesQuery.isError ? (
+                <p className={`${styles.volumeStatus} ${styles.volumeStatusError}`}>
+                  Failed to load volumes: {getErrorMessage(inputVolumesQuery.error)}
+                </p>
+              ) : filteredInputVolumeOptions.length === 0 ? (
+                <p className={styles.volumeStatus}>No input volumes match your search.</p>
+              ) : (
+                <div className={styles.volumeBrowser}>
+                  <div className={styles.volumeList} role="listbox" aria-label="Available input volumes">
+                    {filteredInputVolumeOptions.map((volume) => {
+                      const isActive = volume.id === volumePreviewId
+                      return (
+                        <button
+                          key={volume.id}
+                          type="button"
+                          className={`${styles.volumeListButton} ${isActive ? styles.volumeListButtonActive : ''}`.trim()}
+                          onClick={() => handleVolumePreviewSelect(volume.id)}
+                          aria-pressed={isActive}
+                        >
+                          <span className={styles.volumeListTitle}>
+                            #{volume.id} · {volume.pvc_name}
+                          </span>
+                          <span className={styles.volumeListMeta}>
+                            {volume.size} Gi · Prefix:{' '}
+                            <span className={styles.monospace}>{volume.key_prefix ?? '—'}</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className={styles.volumePreviewPanel}>
+                    {!previewVolume ? (
+                      <p className={styles.volumeStatus}>Select a volume to preview its objects.</p>
+                    ) : (
+                      <>
+                        <div className={styles.volumePreviewHeader}>
+                          <div>
+                            <div className={styles.volumePreviewTitle}>
+                              #{previewVolume.id} · {previewVolume.pvc_name}
+                            </div>
+                            <div className={styles.volumePreviewMeta}>
+                              Size: {previewVolume.size} Gi · Prefix:{' '}
+                              <span className={styles.monospace}>{previewPrefix ?? '—'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className={styles.volumeObjects}>
+                          <div className={styles.volumeObjectsHeading}>
+                            <span>Objects</span>
+                            {previewObjectsTruncated ? <span className={styles.volumeBadge}>Limited view</span> : null}
+                          </div>
+                          {volumeObjectsQuery.isPending ? (
+                            <p className={styles.volumeStatus}>Loading objects…</p>
+                          ) : volumeObjectsQuery.isError ? (
+                            <p className={`${styles.volumeStatus} ${styles.volumeStatusError}`}>
+                              Failed to load objects: {getErrorMessage(volumeObjectsQuery.error)}
+                            </p>
+                          ) : previewObjects.length === 0 ? (
+                            <p className={styles.volumeStatus}>No objects found for this volume.</p>
+                          ) : (
+                            <ul className={styles.volumeObjectsList}>
+                              {previewObjects.map((object) => (
+                                <li key={object.key} className={styles.volumeObjectRow}>
+                                  <div className={styles.volumeObjectKey}>{object.key}</div>
+                                  <div className={styles.volumeObjectMeta}>
+                                    <span>{formatFileSize(object.size)}</span>
+                                    <span aria-hidden="true">•</span>
+                                    <span>{formatDateTime(object.last_modified)}</span>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {previewObjectsTruncated ? (
+                            <p className={styles.volumeStatus}>Showing the first {INPUT_VOLUME_OBJECTS_MAX_KEYS} objects.</p>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <footer className={styles.volumeFooter}>
+              <button type="button" className={styles.secondaryAction} onClick={handleCloseVolumesModal}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.submitButton}
+                onClick={handleConfirmVolumeSelection}
+                disabled={!previewVolume}
+              >
+                Confirm volume
+              </button>
+            </footer>
           </div>
         </div>
       ) : null}

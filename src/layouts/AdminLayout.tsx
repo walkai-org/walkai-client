@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import type { JSX } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar, { type SidebarNavItem } from '../components/sidebar/Sidebar'
-import { DashboardIcon, JobsIcon, ProfileIcon, SecretsIcon, UsersIcon } from '../components/icons'
+import { DashboardIcon, JobsIcon, ProfileIcon, SecretsIcon, UsersIcon, VolumesIcon } from '../components/icons'
 import styles from './AdminLayout.module.css'
 
 const API_BASE = '/api'
@@ -18,6 +18,11 @@ const navItems: SidebarNavItem[] = [
     label: 'Jobs',
     icon: JobsIcon,
     to: '/app/jobs',
+  },
+  {
+    label: 'Input Volumes',
+    icon: VolumesIcon,
+    to: '/app/input-volumes',
   },
   {
     label: 'Secrets',
