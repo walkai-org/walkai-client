@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styles from './InputVolumes.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const DEFAULT_STORAGE_GIB = 1
 
 type InputVolume = {

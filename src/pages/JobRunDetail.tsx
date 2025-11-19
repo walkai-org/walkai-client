@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchClusterPods, type ClusterPod } from '../api/clusterPods'
 import styles from './JobRunDetail.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const MAX_LOG_LINES = 500
 const POD_ACTIVITY_STALE_TIME_MS = 4_000
 const POD_ACTIVITY_REFETCH_INTERVAL_MS = 5_000
