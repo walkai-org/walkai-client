@@ -1,4 +1,4 @@
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 export type SecretSummary = {
   name: string

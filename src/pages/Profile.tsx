@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchSession, type SessionUser } from '../api/session'
 import styles from './Profile.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 type RawPersonalAccessToken = {
   id: number

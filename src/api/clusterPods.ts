@@ -1,6 +1,6 @@
 import { GPU_PROFILE_ORDER, getProfileOrder, type GPUProfile } from '../constants/gpuProfiles'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 export type ClusterPod = {
   name: string

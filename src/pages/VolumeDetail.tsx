@@ -4,7 +4,7 @@ import type { JSX } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import styles from './VolumeDetail.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const DEFAULT_MAX_KEYS = 200
 
 type VolumeInfo = {
