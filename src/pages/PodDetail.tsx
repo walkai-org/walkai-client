@@ -1,32 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { JSX } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { fetchClusterPods, type ClusterPod } from '../api/clusterPods'
+import { formatGpuLabel } from '../constants/gpuProfiles'
 import styles from './PodDetail.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE;
-const GPU_PROFILES = ['1g.10gb', '2g.20gb', '3g.40gb', '4g.40gb', '7g.79gb'] as const
-const GPU_PROFILE_ORDER = new Map(GPU_PROFILES.map((profile, index) => [profile, index]))
+const PODS_STALE_TIME_MS = 4_000
+const PODS_REFETCH_INTERVAL_MS = 5_000
+const POD_JOB_RUN_STALE_TIME_MS = 10_000
+const POD_JOB_RUN_REFETCH_INTERVAL_MS = 15_000
 const MAX_LOG_LINES = 500
 
-type GPUProfile = (typeof GPU_PROFILES)[number]
-
-type ClusterPod = {
-  name: string
-  namespace: string
+type PodJobRunRecord = {
+  id: number
+  job_id: number
   status: string
-  gpu: GPUProfile
-  start_time: string | null
-  finish_time: string | null
+  k8s_pod_name: string
+  k8s_job_name: string
+  started_at: string | null
+  finished_at: string | null
 }
 
 type PodDetailLocationState = {
   pod?: ClusterPod
 }
-
-const getProfileOrder = (profile: GPUProfile): number => GPU_PROFILE_ORDER.get(profile) ?? GPU_PROFILES.length
-
-const formatGpuLabel = (gpu: GPUProfile): string => gpu.replace(/gb$/i, '')
 
 const formatStatusLabel = (status: string): string =>
   status
@@ -60,48 +59,43 @@ const formatDateTime = (value: string | null | undefined): string => {
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message || fallback : fallback
 
-const isClusterPod = (value: unknown): value is ClusterPod => {
+const isPodJobRunRecord = (value: unknown): value is PodJobRunRecord => {
   if (!value || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
 
-  const name = record.name
-  const namespace = record.namespace
-  const status = record.status
-  const gpu = record.gpu
-  const startTime = record.start_time
-  const finishTime = record.finish_time
-
-  const isGpuProfile = typeof gpu === 'string' && GPU_PROFILE_ORDER.has(gpu as GPUProfile)
-  const isDateValue = (input: unknown) => input === null || typeof input === 'string'
+  const isNullableString = (input: unknown) => input === null || typeof input === 'string'
 
   return (
-    typeof name === 'string' &&
-    name.length > 0 &&
-    typeof namespace === 'string' &&
-    namespace.length > 0 &&
-    typeof status === 'string' &&
-    status.length > 0 &&
-    isGpuProfile &&
-    isDateValue(startTime) &&
-    isDateValue(finishTime)
+    typeof record.id === 'number' &&
+    typeof record.job_id === 'number' &&
+    typeof record.status === 'string' &&
+    typeof record.k8s_pod_name === 'string' &&
+    typeof record.k8s_job_name === 'string' &&
+    isNullableString(record.started_at) &&
+    isNullableString(record.finished_at)
   )
 }
 
-const fetchClusterPods = async (): Promise<ClusterPod[]> => {
-  const response = await fetch(`${API_BASE}/cluster/pods`, {
+
+const fetchJobRunByPod = async (podName: string): Promise<PodJobRunRecord | null> => {
+  const response = await fetch(`${API_BASE}/jobs/runs/by-pod/${encodeURIComponent(podName)}`, {
     method: 'GET',
     credentials: 'include',
   })
 
+  if (response.status === 404) {
+    return null
+  }
+
   if (!response.ok) {
-    let detail = 'Failed to load pod data. Please try again.'
+    let detail = `Failed to load job run for pod ${podName}. (Status ${response.status})`
     try {
       const payload = (await response.json()) as { detail?: unknown }
       if (typeof payload?.detail === 'string' && payload.detail.trim()) {
         detail = payload.detail
       }
     } catch {
-      // ignore JSON parsing errors from error responses
+      // ignore parsing errors for error responses
     }
     throw new Error(detail)
   }
@@ -110,14 +104,14 @@ const fetchClusterPods = async (): Promise<ClusterPod[]> => {
   try {
     payload = await response.json()
   } catch {
-    throw new Error('Received unreadable pod response. Please try again.')
+    throw new Error('Received unreadable job run response. Please try again.')
   }
 
-  if (!Array.isArray(payload) || !payload.every(isClusterPod)) {
-    throw new Error('Received malformed pod response. Please contact support.')
+  if (!isPodJobRunRecord(payload)) {
+    throw new Error('Received malformed job run response. Please contact support.')
   }
 
-  return payload.sort((a, b) => getProfileOrder(a.gpu) - getProfileOrder(b.gpu))
+  return payload
 }
 
 const PodDetail = (): JSX.Element => {
@@ -132,8 +126,18 @@ const PodDetail = (): JSX.Element => {
     queryKey: ['cluster', 'pods'],
     queryFn: fetchClusterPods,
     enabled: !statePod,
-    staleTime: 10_000,
-    refetchInterval: 10_000,
+    staleTime: PODS_STALE_TIME_MS,
+    refetchInterval: PODS_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
+  })
+
+  const jobRunQuery = useQuery<PodJobRunRecord | null, Error>({
+    queryKey: ['jobs', 'runs', 'byPod', podName],
+    queryFn: () => fetchJobRunByPod(podName),
+    enabled: Boolean(podName),
+    staleTime: POD_JOB_RUN_STALE_TIME_MS,
+    refetchInterval: POD_JOB_RUN_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   })
 
   const pod = useMemo(() => {
@@ -145,6 +149,26 @@ const PodDetail = (): JSX.Element => {
   const [logLines, setLogLines] = useState<string[]>([])
   const [logError, setLogError] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
+
+  const podJobRun = jobRunQuery.data ?? null
+  const jobRunLinkTarget = podJobRun ? `/app/jobs/${podJobRun.job_id}/runs/${podJobRun.id}` : null
+
+  const jobRunButtonLabel = jobRunQuery.isPending
+    ? 'Fetching job run…'
+    : jobRunQuery.isError
+      ? 'Run unavailable'
+      : podJobRun
+        ? 'View job run'
+        : 'No job run yet'
+
+  const jobRunButtonDisabled = jobRunQuery.isPending || jobRunQuery.isError || !podJobRun
+  const jobRunButtonTitle = (() => {
+    if (jobRunQuery.isError) return jobRunQuery.error.message
+    if (!podJobRun && !jobRunQuery.isPending && podName) {
+      return 'No job run is associated with this pod yet.'
+    }
+    return undefined
+  })()
 
   useEffect(() => {
     if (!podName) return undefined
@@ -244,8 +268,13 @@ const PodDetail = (): JSX.Element => {
     return `${styles.statusBadge} ${modifier}`.trim()
   }
 
-  const handleBack = () => {
-    navigate(-1)
+  const handleBackToDashboard = () => {
+    navigate('/app/dashboard')
+  }
+
+  const handleViewJobRun = () => {
+    if (!jobRunLinkTarget) return
+    navigate(jobRunLinkTarget)
   }
 
   const LOADING_META_MESSAGE = 'Loading pod metadata…'
@@ -269,12 +298,20 @@ const PodDetail = (): JSX.Element => {
           <p>Monitor live logs and metadata for this workload.</p>
         </div>
         <div className={styles.headerActions}>
-          <button type="button" className={styles.backButton} onClick={handleBack}>
-            Back
+          <button type="button" className={styles.backButton} onClick={handleBackToDashboard}>
+            Back to dashboard
           </button>
-          <Link to="/app/dashboard" className={styles.linkButton}>
-            View dashboard
-          </Link>
+          {podName && (
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={handleViewJobRun}
+              disabled={jobRunButtonDisabled}
+              title={jobRunButtonTitle}
+            >
+              {jobRunButtonLabel}
+            </button>
+          )}
         </div>
       </header>
 

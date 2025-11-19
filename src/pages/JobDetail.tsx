@@ -1,29 +1,19 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { JSX } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import styles from './JobDetail.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE;
+const JOB_DETAIL_STALE_TIME_MS = 5_000
+const JOB_DETAIL_REFETCH_INTERVAL_MS = 5_000
 
-type VolumeInfo = {
-  id: number
-  pvc_name: string
-  size: number
-  key_prefix: string | null
-  is_input: boolean
-  state: string
-}
-
-type JobRunDetail = {
+type JobRunSummary = {
   id: number
   status: string
-  k8s_job_name: string
   k8s_pod_name: string
   started_at: string | null
   finished_at: string | null
-  output_volume: VolumeInfo | null
-  input_volume: VolumeInfo | null
 }
 
 type JobDetailRecord = {
@@ -32,24 +22,10 @@ type JobDetailRecord = {
   gpu_profile: string
   submitted_at: string
   created_by_id: number
-  runs: JobRunDetail[]
+  runs: JobRunSummary[]
 }
 
-const isVolumeInfo = (value: unknown): value is VolumeInfo => {
-  if (!value || typeof value !== 'object') return false
-  const record = value as Record<string, unknown>
-
-  return (
-    typeof record.id === 'number' &&
-    typeof record.pvc_name === 'string' &&
-    typeof record.size === 'number' &&
-    (record.key_prefix === null || typeof record.key_prefix === 'string') &&
-    typeof record.is_input === 'boolean' &&
-    typeof record.state === 'string'
-  )
-}
-
-const isJobRunDetail = (value: unknown): value is JobRunDetail => {
+const isJobRunSummary = (value: unknown): value is JobRunSummary => {
   if (!value || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
 
@@ -58,12 +34,9 @@ const isJobRunDetail = (value: unknown): value is JobRunDetail => {
   return (
     typeof record.id === 'number' &&
     typeof record.status === 'string' &&
-    typeof record.k8s_job_name === 'string' &&
     typeof record.k8s_pod_name === 'string' &&
     isNullableString(record.started_at) &&
-    isNullableString(record.finished_at) &&
-    (record.output_volume === null || isVolumeInfo(record.output_volume)) &&
-    (record.input_volume === null || isVolumeInfo(record.input_volume))
+    isNullableString(record.finished_at)
   )
 }
 
@@ -78,7 +51,7 @@ const isJobDetail = (value: unknown): value is JobDetailRecord => {
     typeof record.submitted_at === 'string' &&
     typeof record.created_by_id === 'number' &&
     Array.isArray(record.runs) &&
-    record.runs.every(isJobRunDetail)
+    record.runs.every(isJobRunSummary)
   )
 }
 
@@ -147,8 +120,9 @@ const JobDetail = (): JSX.Element => {
     queryKey: ['jobs', 'detail', jobId],
     queryFn: () => fetchJobDetail(jobId),
     enabled: Boolean(jobId),
-    staleTime: 10_000,
-    refetchInterval: 15_000,
+    staleTime: JOB_DETAIL_STALE_TIME_MS,
+    refetchInterval: JOB_DETAIL_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   })
 
   const job = jobQuery.data
@@ -176,9 +150,6 @@ const JobDetail = (): JSX.Element => {
           <button type="button" className={styles.backButton} onClick={handleBack}>
             Back
           </button>
-          <Link to="/app/jobs" className={styles.linkButton}>
-            View all jobs
-          </Link>
         </div>
       </header>
 
@@ -215,7 +186,7 @@ const JobDetail = (): JSX.Element => {
           <section className={styles.runsSection} aria-labelledby="job-runs-heading">
             <div className={styles.runsHeading}>
               <h2 id="job-runs-heading">Runs</h2>
-              <p>Review each run’s timing, status, and associated volumes.</p>
+              <p>Review each run’s timing and status, then open a run for detailed information and logs.</p>
             </div>
 
             {runs.length === 0 ? (
@@ -231,9 +202,7 @@ const JobDetail = (): JSX.Element => {
                       <th scope="col">Started</th>
                       <th scope="col">Finished</th>
                       <th scope="col">Pod</th>
-                      <th scope="col">K8s Job</th>
-                      <th scope="col">Output Volume</th>
-                      <th scope="col">Input Volume</th>
+                      <th scope="col" className={styles.actionsHeading}>Details</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -244,11 +213,21 @@ const JobDetail = (): JSX.Element => {
                         started_at: startedAt,
                         finished_at: finishedAt,
                         k8s_pod_name: podName,
-                        output_volume: outputVolume,
-                        input_volume: inputVolume,
-                        k8s_job_name: jobName,
                       }) => (
-                        <tr key={id}>
+                        <tr
+                          key={id}
+                          className={styles.clickableRow}
+                          tabIndex={0}
+                          role="link"
+                          aria-label={`View details for run #${id}`}
+                          onClick={() => navigate(`/app/jobs/${jobId}/runs/${id}`)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              navigate(`/app/jobs/${jobId}/runs/${id}`)
+                            }
+                          }}
+                        >
                           <td>#{id}</td>
                           <td>
                             <span className={getStatusClassName(status)}>{formatStatusLabel(status)}</span>
@@ -256,9 +235,18 @@ const JobDetail = (): JSX.Element => {
                           <td>{formatDateTime(startedAt)}</td>
                           <td>{formatDateTime(finishedAt)}</td>
                           <td className={styles.monospace}>{podName}</td>
-                          <td className={styles.monospace}>{jobName}</td>
-                          <td>{outputVolume?.pvc_name}</td>
-                          <td>{inputVolume?.pvc_name}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.detailsButton}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                navigate(`/app/jobs/${jobId}/runs/${id}`)
+                              }}
+                            >
+                              View run
+                            </button>
+                          </td>
                         </tr>
                       ),
                     )}

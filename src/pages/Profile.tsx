@@ -1,0 +1,400 @@
+import { useState } from 'react'
+import type { ChangeEvent, FormEvent, JSX } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchSession, type SessionUser } from '../api/session'
+import styles from './Profile.module.css'
+
+const API_BASE = '/api' as const
+
+type RawPersonalAccessToken = {
+  id: number
+  name: string
+  created_at?: string | null
+  last_used_at?: string | null
+}
+
+type PersonalAccessToken = {
+  id: number
+  name: string
+  createdAt: string | null
+  lastUsedAt: string | null
+}
+
+type CreateTokenResponse = {
+  token?: string
+}
+
+const TOKENS_QUERY_KEY = ['personal-access-tokens'] as const
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object'
+
+const isRawPersonalAccessToken = (value: unknown): value is RawPersonalAccessToken => {
+  if (!isRecord(value)) return false
+  return typeof value.id === 'number' && typeof value.name === 'string'
+}
+
+const toPersonalAccessToken = (token: RawPersonalAccessToken): PersonalAccessToken => ({
+  id: token.id,
+  name: token.name,
+  createdAt: token.created_at ?? null,
+  lastUsedAt: token.last_used_at ?? null,
+})
+
+const readDetailFromPayload = (payload: unknown): string | null => {
+  if (!isRecord(payload)) return null
+  const { detail } = payload
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0]
+    if (isRecord(first) && typeof first.msg === 'string' && first.msg.trim()) return first.msg
+  }
+  return null
+}
+
+const readErrorMessage = async (response: Response, fallback: string): Promise<string> => {
+  try {
+    const payload = await response.json()
+    const detail = readDetailFromPayload(payload)
+    if (detail) return detail
+  } catch { }
+  return fallback
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error && error.message ? error.message : fallback
+
+const fetchPersonalAccessTokens = async (): Promise<PersonalAccessToken[]> => {
+  const response = await fetch(`${API_BASE}/users/me/tokens/`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, 'Failed to load personal access tokens. Please try again.'))
+  }
+
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    throw new Error('Received unreadable tokens response. Please try again.')
+  }
+
+  if (!Array.isArray(payload) || !payload.every(isRawPersonalAccessToken)) {
+    throw new Error('Received malformed tokens response. Please contact support.')
+  }
+
+  return payload.map(toPersonalAccessToken)
+}
+
+const createPersonalAccessToken = async (name: string): Promise<CreateTokenResponse> => {
+  const response = await fetch(`${API_BASE}/users/me/tokens/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ name }),
+  })
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, 'Failed to create token. Please try again.'))
+  }
+
+  try {
+    const payload: unknown = await response.json()
+    if (!isRecord(payload)) return {}
+    const token = typeof payload.token === 'string' && payload.token.trim() ? payload.token : undefined
+    return token ? { token } : {}
+  } catch {
+    return {}
+  }
+}
+
+const deletePersonalAccessToken = async (tokenId: number): Promise<void> => {
+  const response = await fetch(`${API_BASE}/users/me/tokens/${tokenId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, 'Failed to delete token. Please try again.'))
+  }
+}
+
+const formatDateTime = (value: string | null): string => {
+  if (!value) return 'Never'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown'
+  return date.toLocaleString()
+}
+
+const Profile = (): JSX.Element => {
+  const queryClient = useQueryClient()
+
+  const [tokenName, setTokenName] = useState('')
+  const [tokenNameError, setTokenNameError] = useState<string | null>(null)
+  const [generatedTokenValue, setGeneratedTokenValue] = useState<string | null>(null)
+  const [confirmingTokenId, setConfirmingTokenId] = useState<number | null>(null)
+  const [isEmptyTokensNoticeDismissed, setEmptyTokensNoticeDismissed] = useState(false)
+
+  const sessionQuery = useQuery<SessionUser, Error>({
+    queryKey: ['session'],
+    queryFn: fetchSession,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
+    retry: false,
+  })
+
+  const tokensQuery = useQuery<PersonalAccessToken[], Error>({
+    queryKey: TOKENS_QUERY_KEY,
+    queryFn: fetchPersonalAccessTokens,
+    staleTime: 5_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
+  })
+
+  const createTokenMutation = useMutation<CreateTokenResponse, Error, string>({
+    mutationFn: (name) => createPersonalAccessToken(name),
+    onSuccess: (data) => {
+      setGeneratedTokenValue(data.token ?? null)
+      setTokenName('')
+      setTokenNameError(null)
+      queryClient.invalidateQueries({ queryKey: TOKENS_QUERY_KEY })
+    },
+  })
+
+  const deleteTokenMutation = useMutation<void, Error, number>({
+    mutationFn: (tokenId) => deletePersonalAccessToken(tokenId),
+    onSuccess: (_, tokenId) => {
+      queryClient.invalidateQueries({ queryKey: TOKENS_QUERY_KEY })
+      setConfirmingTokenId((current) => (current === tokenId ? null : current))
+    },
+  })
+
+  const handleTokenNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setTokenName(event.target.value)
+    if (tokenNameError) setTokenNameError(null)
+  }
+
+  const handleCreateToken = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmed = tokenName.trim()
+
+    if (!trimmed) {
+      setTokenNameError('Please provide a descriptive name.')
+      return
+    }
+
+    try {
+      await createTokenMutation.mutateAsync(trimmed)
+    } catch (error) {
+      window.alert(getErrorMessage(error, 'Unable to create token. Please try again.'))
+    }
+  }
+
+  const handleRequestDeleteToken = (tokenId: number) => {
+    if (isDeletingToken) return
+    setConfirmingTokenId((current) => (current === tokenId ? null : tokenId))
+  }
+
+  const handleCancelDeleteToken = () => {
+    if (isDeletingToken) return
+    setConfirmingTokenId(null)
+  }
+
+  const handleConfirmDeleteToken = async (tokenId: number) => {
+    try {
+      await deleteTokenMutation.mutateAsync(tokenId)
+    } catch (error) {
+      window.alert(getErrorMessage(error, 'Unable to delete token. Please try again.'))
+    }
+  }
+
+  const tokens = tokensQuery.data ?? []
+  const isDeletingToken = deleteTokenMutation.isPending
+  const deletingTokenId = isDeletingToken ? deleteTokenMutation.variables : null
+  const handleDismissGeneratedToken = () => setGeneratedTokenValue(null)
+  const handleDismissEmptyTokensNotice = () => setEmptyTokensNoticeDismissed(true)
+
+  return (
+    <section className={styles.profile}>
+      <header className={styles.header}>
+        <div>
+          <h1>Profile</h1>
+          <p>Review your account details and manage personal access tokens.</p>
+        </div>
+      </header>
+
+      <div className={styles.grid}>
+        <section className={styles.card} aria-labelledby="profile-account">
+          <div className={styles.cardHeader}>
+            <h2 id="profile-account">Account</h2>
+            <p>Your primary account information.</p>
+          </div>
+          {sessionQuery.isPending ? (
+            <p className={styles.muted}>Loading account details…</p>
+          ) : sessionQuery.isError ? (
+            <p className={styles.error}>Unable to load account details. Please refresh.</p>
+          ) : (
+            <dl className={styles.details}>
+              <div>
+                <dt>Email</dt>
+                <dd>{sessionQuery.data?.email ?? 'Unknown'}</dd>
+              </div>
+              <div>
+                <dt>Role</dt>
+                <dd>{sessionQuery.data?.role ?? 'Not assigned'}</dd>
+              </div>
+            </dl>
+          )}
+        </section>
+
+        <section className={styles.card} aria-labelledby="profile-tokens">
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 id="profile-tokens">Personal Access Tokens</h2>
+              <p>Create tokens for CLI or automation access.</p>
+            </div>
+          </div>
+
+          <form className={styles.tokenForm} onSubmit={handleCreateToken}>
+            <label htmlFor="token-name">Token name</label>
+            <div className={styles.tokenFormRow}>
+              <input
+                id="token-name"
+                name="tokenName"
+                type="text"
+                value={tokenName}
+                onChange={handleTokenNameChange}
+                placeholder="e.g. CLI"
+                disabled={createTokenMutation.isPending}
+                aria-invalid={tokenNameError ? 'true' : 'false'}
+              />
+              <button type="submit" disabled={createTokenMutation.isPending}>
+                {createTokenMutation.isPending ? 'Creating…' : 'Generate token'}
+              </button>
+            </div>
+            {tokenNameError ? <p className={styles.fieldError}>{tokenNameError}</p> : null}
+            {createTokenMutation.isError ? (
+              <p className={styles.error}>
+                {getErrorMessage(createTokenMutation.error, 'Failed to create token. Please try again.')}
+              </p>
+            ) : null}
+          </form>
+
+          {generatedTokenValue ? (
+            <div className={styles.tokenNotice} role="status">
+              <div className={styles.tokenNoticeHeader}>
+                <strong>New token</strong>
+                <button
+                  type="button"
+                  className={styles.tokenNoticeClose}
+                  onClick={handleDismissGeneratedToken}
+                  aria-label="Dismiss generated token"
+                />
+              </div>
+              <code className={styles.tokenValue}>{generatedTokenValue}</code>
+              <p>This token is shown only once. Store it securely now.</p>
+            </div>
+          ) : null}
+
+          <div className={styles.tokenList}>
+            {tokensQuery.isPending ? (
+              <p className={styles.muted}>Loading tokens…</p>
+            ) : tokensQuery.isError ? (
+              <p className={styles.error}>
+                {getErrorMessage(tokensQuery.error, 'Unable to load tokens. Please refresh.')}
+              </p>
+            ) : tokens.length === 0 ? (
+              <>
+                {!isEmptyTokensNoticeDismissed ? (
+                  <div className={styles.tokenNotice} role="status">
+                    <div className={styles.tokenNoticeHeader}>
+                      <strong>Haven&apos;t set up the Walk:AI CLI yet?</strong>
+                      <button
+                        type="button"
+                        className={styles.tokenNoticeClose}
+                        onClick={handleDismissEmptyTokensNotice}
+                        aria-label="Dismiss CLI setup notice"
+                      />
+                    </div>
+                    <p>
+                      Create a new personal access token and follow the
+                      instructions at{' '}
+                      <a
+                        href="https://github.com/walkai-org/walkai-cli?tab=readme-ov-file#walkai-cli"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        walkai-cli README
+                      </a>
+                      .
+                    </p>
+                  </div>
+                ) : null}
+                <p className={styles.muted}>No tokens yet. Create one to get started.</p>
+              </>
+            ) : (
+              <ul className={styles.tokens} aria-live="polite">
+                {tokens.map((token) => (
+                  <li key={token.id} className={styles.tokenItem}>
+                    <div className={styles.tokenMeta}>
+                      <h3>{token.name}</h3>
+                      <p>
+                        Created: {formatDateTime(token.createdAt)} · Last used: {formatDateTime(token.lastUsedAt)}
+                      </p>
+                    </div>
+                    <div className={styles.deleteControls}>
+                      <button
+                        type="button"
+                        onClick={() => handleRequestDeleteToken(token.id)}
+                        disabled={isDeletingToken}
+                        className={styles.deleteButton}
+                        aria-haspopup="dialog"
+                        aria-expanded={confirmingTokenId === token.id}
+                        aria-controls={confirmingTokenId === token.id ? `token-${token.id}-confirm` : undefined}
+                      >
+                        Delete
+                      </button>
+                      {confirmingTokenId === token.id ? (
+                        <div
+                          id={`token-${token.id}-confirm`}
+                          className={styles.deleteConfirm}
+                          role="alert"
+                          aria-live="assertive"
+                        >
+                          <p>Remove this token? This action cannot be undone.</p>
+                          <div className={styles.deleteActions}>
+                            <button
+                              type="button"
+                              className={styles.deleteCancel}
+                              onClick={handleCancelDeleteToken}
+                              disabled={isDeletingToken}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.deleteConfirmButton}
+                              onClick={() => handleConfirmDeleteToken(token.id)}
+                              disabled={isDeletingToken}
+                            >
+                              {isDeletingToken && deletingTokenId === token.id ? 'Removing…' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      </div>
+    </section>
+  )
+}
+
+export default Profile

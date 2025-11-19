@@ -2,25 +2,19 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { JSX, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { GPU_PROFILE_ORDER, GPU_PROFILES, formatGpuLabel, getProfileOrder, type GPUProfile } from '../constants/gpuProfiles'
 import styles from './Dashboard.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
-const GPU_PROFILES = ['1g.10gb', '2g.20gb', '3g.40gb', '4g.40gb', '7g.79gb'] as const
-
-type GPUProfile = (typeof GPU_PROFILES)[number]
+const DASHBOARD_STALE_TIME_MS = 4_000
+const DASHBOARD_REFETCH_INTERVAL_MS = 5_000
 
 type ClusterResource = {
   gpu: GPUProfile
   allocated: number
   available: number
 }
-
-const GPU_PROFILE_ORDER = new Map(GPU_PROFILES.map((profile, index) => [profile, index]))
-
-const getProfileOrder = (profile: GPUProfile): number => GPU_PROFILE_ORDER.get(profile) ?? GPU_PROFILES.length
-
-const formatGpuLabel = (gpu: GPUProfile): string => gpu.replace(/gb$/i, '')
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message || fallback : fallback
@@ -189,15 +183,17 @@ const Dashboard = (): JSX.Element => {
   const resourcesQuery = useQuery<ClusterResource[], Error>({
     queryKey: ['cluster', 'resources'],
     queryFn: fetchClusterResources,
-    staleTime: 10_000,
-    refetchInterval: 10_000,
+    staleTime: DASHBOARD_STALE_TIME_MS,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   })
 
   const podsQuery = useQuery<ClusterPod[], Error>({
     queryKey: ['cluster', 'pods'],
     queryFn: fetchClusterPods,
-    staleTime: 10_000,
-    refetchInterval: 10_000,
+    staleTime: DASHBOARD_STALE_TIME_MS,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   })
 
   const resources = useMemo(() => {

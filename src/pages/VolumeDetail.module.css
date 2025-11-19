@@ -1,4 +1,4 @@
-.jobDetail {
+.volumeDetail {
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -22,6 +22,13 @@
   margin: 0.35rem 0 0;
   color: #475569;
   max-width: 40rem;
+}
+
+.prefix {
+  margin: 0.35rem 0 0;
+  color: #334155;
+  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.9rem;
 }
 
 .headerActions {
@@ -81,7 +88,7 @@
   color: #b91c1c;
 }
 
-.metaSection {
+.objectsSection {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 1rem;
@@ -92,51 +99,7 @@
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
 }
 
-.metaSection h2 {
-  margin: 0;
-  color: #0f172a;
-}
-
-.metaGrid {
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.metaGrid div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.metaGrid dt {
-  margin: 0;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
-}
-
-.metaGrid dd {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #0f172a;
-  word-break: break-word;
-}
-
-.runsSection {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.runsHeading {
+.sectionHeading {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -144,12 +107,12 @@
   flex-wrap: wrap;
 }
 
-.runsHeading h2 {
+.sectionHeading h2 {
   margin: 0;
   color: #0f172a;
 }
 
-.runsHeading p {
+.sectionHeading p {
   margin: 0;
   color: #64748b;
   max-width: 32rem;
@@ -185,10 +148,6 @@
   letter-spacing: 0.08em;
 }
 
-.actionsHeading {
-  text-align: right;
-}
-
 .table tbody tr:last-of-type td {
   border-bottom: none;
 }
@@ -197,71 +156,75 @@
   background: #f8fafc;
 }
 
+.actionsHeading {
+  text-align: right;
+}
+
 .monospace {
   font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 0.9rem;
   color: #0f172a;
+  word-break: break-word;
 }
 
-.clickableRow {
-  cursor: pointer;
-  transition: background 0.15s ease;
+.actionsCell {
+  text-align: right;
 }
 
-.detailsButton {
-  margin: 0;
+.downloadButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   border: 1px solid transparent;
   font-size: 0.85rem;
   font-weight: 600;
+  color: #ffffff;
+  background: #0ea5e9;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.downloadButton:hover:not(:disabled) {
+  background: #0284c7;
+  transform: translateY(-1px);
+}
+
+.downloadButton:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.loadMoreButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.95rem;
   color: #0f172a;
   background: #e2e8f0;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.detailsButton:hover {
+.loadMoreButton:hover:not(:disabled) {
   background: #cbd5f1;
   transform: translateY(-1px);
 }
 
-.statusBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.running {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.pending {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.failed {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.succeeded {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.unknown {
-  background: #e2e8f0;
-  color: #1e293b;
+.loadMoreButton:disabled {
+  background: #cbd5f1;
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
 @media (max-width: 720px) {
@@ -280,7 +243,7 @@
     width: 100%;
   }
 
-  .runsHeading {
+  .sectionHeading {
     flex-direction: column;
     align-items: flex-start;
   }

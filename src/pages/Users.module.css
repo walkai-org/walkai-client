@@ -87,6 +87,49 @@
   color: #b91c1c;
 }
 
+.feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
+}
+
+.feedbackSuccess {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.feedbackError {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.feedbackDismiss {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.feedbackDismiss:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
 .userCell {
   display: flex;
   align-items: center;
@@ -127,40 +170,6 @@
 .suspended {
   background: #fee2e2;
   color: #b91c1c;
-}
-
-.actionsHeader,
-.actionsCell {
-  text-align: right;
-}
-
-.actionsCell {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.actionsCell button {
-  border: none;
-  background: transparent;
-  padding: 0.4rem 0.75rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  color: #2563eb;
-  transition: background 0.2s ease;
-}
-
-.actionsCell button:hover {
-  background: rgba(37, 99, 235, 0.08);
-}
-
-.danger {
-  color: #b91c1c;
-}
-
-.danger:hover {
-  background: rgba(185, 28, 28, 0.1);
 }
 
 .modalOverlay {

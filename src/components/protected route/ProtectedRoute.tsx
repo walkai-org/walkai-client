@@ -15,6 +15,8 @@ type ProtectedRouteProps = {
   children: ReactElement
 }
 
+const SESSION_REFETCH_INTERVAL_MS = 30_000
+
 export default function ProtectedRoute({ children }: ProtectedRouteProps): ReactElement | null {
   const navigate = useNavigate()
 
@@ -34,6 +36,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps): React
       }
     },
     retry: false,
+    refetchInterval: SESSION_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
   })
 
   useEffect(() => {

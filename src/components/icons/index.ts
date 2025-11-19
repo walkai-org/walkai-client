@@ -1,3 +1,6 @@
 export { default as DashboardIcon } from './DashboardIcon'
 export { default as JobsIcon } from './JobsIcon'
+export { default as SecretsIcon } from './SecretsIcon'
+export { default as ProfileIcon } from './ProfileIcon'
 export { default as UsersIcon } from './UsersIcon'
+export { default as VolumesIcon } from './VolumesIcon'

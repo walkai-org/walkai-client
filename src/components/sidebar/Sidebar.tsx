@@ -17,7 +17,7 @@ export type SidebarNavItem = {
 type SidebarProps = {
   items: SidebarNavItem[]
   title?: string
-  userEmail?: string
+  profileItem?: SidebarNavItem
   onLogout?: () => void
   logoutLabel?: string
   logoutDisabled?: boolean
@@ -26,17 +26,18 @@ type SidebarProps = {
 const Sidebar = ({
   items,
   title,
-  userEmail,
+  profileItem,
   onLogout,
   logoutLabel = 'Log out',
   logoutDisabled = false,
 }: SidebarProps): JSX.Element => {
+  const ProfileIconComponent = profileItem?.icon
+
   return (
     <aside className={styles.sidebar}>
-      {title || userEmail ? (
+      {title ? (
         <div className={styles.identity}>
-          {title ? <div className={styles.brand}>{title}</div> : null}
-          {userEmail ? <div className={styles.userEmail}>{userEmail}</div> : null}
+          <div className={styles.brand}>{title}</div>
         </div>
       ) : null}
       <nav className={styles.nav} aria-label="Admin navigation">
@@ -54,16 +55,30 @@ const Sidebar = ({
           </NavLink>
         ))}
       </nav>
-      {onLogout ? (
-        <button
-          type="button"
-          className={styles.logoutButton}
-          onClick={onLogout}
-          disabled={logoutDisabled}
-        >
-          {logoutLabel}
-        </button>
-      ) : null}
+      <div className={styles.footer}>
+        {profileItem && ProfileIconComponent ? (
+          <NavLink
+            to={profileItem.to}
+            end={profileItem.end}
+            aria-label={profileItem.label}
+            className={({ isActive }) =>
+              [styles.profileLink, isActive ? styles.profileActive : ''].join(' ').trim()
+            }
+          >
+            <ProfileIconComponent className={styles.profileIcon} aria-hidden title="" />
+          </NavLink>
+        ) : null}
+        {onLogout ? (
+          <button
+            type="button"
+            className={styles.logoutButton}
+            onClick={onLogout}
+            disabled={logoutDisabled}
+          >
+            {logoutLabel}
+          </button>
+        ) : null}
+      </div>
     </aside>
   )
 }
