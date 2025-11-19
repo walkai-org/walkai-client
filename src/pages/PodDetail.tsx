@@ -4,7 +4,7 @@ import type { JSX } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import styles from './PodDetail.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const GPU_PROFILES = ['1g.10gb', '2g.20gb', '3g.40gb', '4g.40gb', '7g.79gb'] as const
 const GPU_PROFILE_ORDER = new Map(GPU_PROFILES.map((profile, index) => [profile, index]))
 const MAX_LOG_LINES = 500

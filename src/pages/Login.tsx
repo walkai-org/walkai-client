@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import AuthLayout from '../layouts/AuthLayout'
 import styles from './Login.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 type LoginFormState = {
   email: string

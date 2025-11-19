@@ -6,7 +6,7 @@ import { DashboardIcon, JobsIcon, UsersIcon } from '../components/icons'
 import type { SessionUser } from '../api/session'
 import styles from './AdminLayout.module.css'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 const navItems: SidebarNavItem[] = [
   {

@@ -3,7 +3,7 @@ import type { JSX, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styles from './Jobs.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 type JobRun = {
   id: number

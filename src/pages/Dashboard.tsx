@@ -4,7 +4,7 @@ import type { JSX, KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styles from './Dashboard.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 const GPU_PROFILES = ['1g.10gb', '2g.20gb', '3g.40gb', '4g.40gb', '7g.79gb'] as const
 

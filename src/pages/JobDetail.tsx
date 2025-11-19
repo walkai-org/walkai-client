@@ -4,7 +4,7 @@ import type { JSX } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import styles from './JobDetail.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 type VolumeInfo = {
   id: number
