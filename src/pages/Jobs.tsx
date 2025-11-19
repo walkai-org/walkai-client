@@ -6,7 +6,7 @@ import { fetchSecretDetail, fetchSecrets, type SecretSummary } from '../api/secr
 import { GPU_PROFILES, type GPUProfile } from '../constants/gpuProfiles'
 import styles from './Jobs.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const JOBS_STALE_TIME_MS = 5_000
 const JOBS_REFETCH_INTERVAL_MS = 5_000
 const JOB_IMAGES_STALE_TIME_MS = 60_000

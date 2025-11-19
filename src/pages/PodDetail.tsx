@@ -6,7 +6,7 @@ import { fetchClusterPods, type ClusterPod } from '../api/clusterPods'
 import { formatGpuLabel } from '../constants/gpuProfiles'
 import styles from './PodDetail.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const PODS_STALE_TIME_MS = 4_000
 const PODS_REFETCH_INTERVAL_MS = 5_000
 const POD_JOB_RUN_STALE_TIME_MS = 10_000

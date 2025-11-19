@@ -5,7 +5,7 @@ import Sidebar, { type SidebarNavItem } from '../components/sidebar/Sidebar'
 import { DashboardIcon, JobsIcon, ProfileIcon, SecretsIcon, UsersIcon, VolumesIcon } from '../components/icons'
 import styles from './AdminLayout.module.css'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_BASE;
 
 const navItems: SidebarNavItem[] = [
   {

@@ -4,7 +4,7 @@ import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import styles from './JobDetail.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const JOB_DETAIL_STALE_TIME_MS = 5_000
 const JOB_DETAIL_REFETCH_INTERVAL_MS = 5_000
 

@@ -3,7 +3,7 @@ import type { ChangeEvent, FormEvent, JSX, MouseEvent } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import styles from './Users.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
 const USERS_STALE_TIME_MS = 5_000
 const USERS_REFETCH_INTERVAL_MS = 15_000
 

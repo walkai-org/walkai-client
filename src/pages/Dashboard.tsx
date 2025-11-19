@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { GPU_PROFILE_ORDER, GPU_PROFILES, formatGpuLabel, getProfileOrder, type GPUProfile } from '../constants/gpuProfiles'
 import styles from './Dashboard.module.css'
 
-const API_BASE = '/api' as const
+const API_BASE = import.meta.env.VITE_API_BASE;
+
 const DASHBOARD_STALE_TIME_MS = 4_000
 const DASHBOARD_REFETCH_INTERVAL_MS = 5_000
 
