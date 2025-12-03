@@ -1,0 +1,54 @@
+name: Deploy Client to S3
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      S3_BUCKET: walkaiorg.app-client
+      CLOUDFRONT_DISTRIBUTION_ID: EAEP69GQ4ZL4J
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Build frontend
+        run: |
+          npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync build to S3
+        run: |
+          aws s3 sync dist/ s3://$S3_BUCKET/ --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*"
