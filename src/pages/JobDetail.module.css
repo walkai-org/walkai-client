@@ -239,6 +239,56 @@
   letter-spacing: 0.05em;
 }
 
+.priorityBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.priorityLow {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.priorityMedium {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.priorityHigh {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.priorityExtraHigh {
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.priorityUnknown {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.gpuBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 .running {
   background: #dcfce7;
   color: #15803d;

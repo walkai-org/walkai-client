@@ -24,6 +24,7 @@ type JobRecord = {
   id: number
   image: string
   gpu_profile: string
+  priority: JobPriority
   submitted_at: string
   created_by_id: number
   latest_run: JobRun | null | undefined
@@ -36,10 +37,13 @@ type JobImageOption = {
   pushed_at: string
 }
 
+type JobPriority = 'low' | 'medium' | 'high' | 'extra-high'
+
 type JobSubmissionPayload = {
   image: string
   gpu: GPUProfile
   storage: number
+  priority: JobPriority
   secretNames: string[]
   inputId: number | null
 }
@@ -69,10 +73,27 @@ type VolumeObjectsResponse = {
 const DEFAULT_STORAGE_GB = 1
 const SUCCESS_MESSAGE_TIMEOUT_MS = 4_000
 const DEFAULT_GPU_PROFILE = (GPU_PROFILES.find((profile) => profile === '1g.10gb') ?? GPU_PROFILES[0]) as GPUProfile
+const DEFAULT_PRIORITY: JobPriority = 'medium'
 const SECRETS_STALE_TIME_MS = 60_000
 const SECRET_DETAILS_STALE_TIME_MS = 60_000
 const INPUT_VOLUMES_STALE_TIME_MS = 15_000
 const INPUT_VOLUME_OBJECTS_MAX_KEYS = 50
+const JOB_PRIORITIES: JobPriority[] = ['low', 'medium', 'high', 'extra-high']
+const PRIORITY_LABELS: Record<JobPriority, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  'extra-high': 'Extra high',
+}
+const PRIORITY_STYLE_MAP: Record<JobPriority, string> = {
+  low: styles.priorityLow,
+  medium: styles.priorityMedium,
+  high: styles.priorityHigh,
+  'extra-high': styles.priorityExtraHigh,
+}
+
+const isJobPriority = (value: unknown): value is JobPriority =>
+  typeof value === 'string' && JOB_PRIORITIES.includes(value as JobPriority)
 
 const isJobRun = (value: unknown): value is JobRun => {
   if (!value || typeof value !== 'object') return false
@@ -103,6 +124,7 @@ const isJobRecord = (value: unknown): value is JobRecord => {
     isString(record.gpu_profile) &&
     isString(record.submitted_at) &&
     typeof record.created_by_id === 'number' &&
+    isJobPriority(record.priority) &&
     (maybeLastRun === undefined || maybeLastRun === null || isJobRun(maybeLastRun))
   )
 }
@@ -307,6 +329,18 @@ const formatStatusLabel = (status: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
 
+const formatPriorityLabel = (priority: string | null | undefined): string => {
+  if (!priority) return 'Unknown'
+  if (isJobPriority(priority)) return PRIORITY_LABELS[priority]
+  return formatStatusLabel(priority)
+}
+
+const getPriorityClassName = (priority: string | null | undefined): string => {
+  const normalized = isJobPriority(priority) ? priority : null
+  const modifier = normalized ? PRIORITY_STYLE_MAP[normalized] : styles.priorityUnknown
+  return `${styles.priorityBadge} ${modifier}`.trim()
+}
+
 const getStatusStyleKey = (status: string): 'running' | 'pending' | 'failed' | 'succeeded' | 'unknown' => {
   const normalized = status.trim().toLowerCase()
   if (normalized.includes('run')) return 'running'
@@ -354,6 +388,7 @@ const Jobs = (): JSX.Element => {
 
   const [imageInput, setImageInput] = useState('')
   const [gpuProfile, setGpuProfile] = useState<GPUProfile>(DEFAULT_GPU_PROFILE)
+  const [priority, setPriority] = useState<JobPriority>(DEFAULT_PRIORITY)
   const [storageInput, setStorageInput] = useState(String(DEFAULT_STORAGE_GB))
   const [selectedSecretNames, setSelectedSecretNames] = useState<string[]>([])
   const [selectedInputVolumeId, setSelectedInputVolumeId] = useState<number | null>(null)
@@ -367,8 +402,8 @@ const Jobs = (): JSX.Element => {
   const [registrySearchTerm, setRegistrySearchTerm] = useState('')
 
   const createJobMutation = useMutation<void, Error, JobSubmissionPayload>({
-    mutationFn: async ({ image, gpu, storage, secretNames, inputId }) => {
-      const payload: Record<string, unknown> = { image, gpu, storage }
+    mutationFn: async ({ image, gpu, storage, priority, secretNames, inputId }) => {
+      const payload: Record<string, unknown> = { image, gpu, storage, priority }
       if (secretNames.length > 0) {
         payload.secret_names = secretNames
       }
@@ -529,6 +564,7 @@ const Jobs = (): JSX.Element => {
   const resetFormState = () => {
     setFormError(null)
     setGpuProfile(DEFAULT_GPU_PROFILE)
+    setPriority(DEFAULT_PRIORITY)
     setStorageInput(String(DEFAULT_STORAGE_GB))
     setImageInput('')
     setSelectedSecretNames([])
@@ -599,6 +635,11 @@ const Jobs = (): JSX.Element => {
     if (successMessage) setSuccessMessage(null)
   }
 
+  const handlePriorityChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setPriority(event.target.value as JobPriority)
+    if (successMessage) setSuccessMessage(null)
+  }
+
   const handleStorageChange = (event: ChangeEvent<HTMLInputElement>) => {
     setStorageInput(event.target.value)
     if (formError) setFormError(null)
@@ -663,6 +704,7 @@ const Jobs = (): JSX.Element => {
         image: trimmedImage,
         gpu: gpuProfile,
         storage: parsedStorage,
+        priority,
         secretNames: selectedSecretNames,
         inputId: selectedInputVolumeId,
       })
@@ -729,6 +771,7 @@ const Jobs = (): JSX.Element => {
                 <tr>
                   <th scope="col">Job ID</th>
                   <th scope="col">Image</th>
+                  <th scope="col">Priority</th>
                   <th scope="col">GPU Profile</th>
                   <th scope="col">Last Run Started</th>
                   <th scope="col">Last Run Status</th>
@@ -737,12 +780,12 @@ const Jobs = (): JSX.Element => {
               <tbody>
                 {jobs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={styles.emptyCell}>
+                    <td colSpan={6} className={styles.emptyCell}>
                       No jobs available.
                     </td>
                   </tr>
                 ) : (
-                  jobs.map(({ id, image, gpu_profile, latest_run: lastRun }) => {
+                  jobs.map(({ id, image, priority, gpu_profile, latest_run: lastRun }) => {
                     const lastRunStatus = lastRun?.status
                     const lastRunStarted = lastRun?.started_at ?? null
 
@@ -758,7 +801,12 @@ const Jobs = (): JSX.Element => {
                       >
                         <td>#{id}</td>
                         <td className={styles.monospace}>{image}</td>
-                        <td>{gpu_profile}</td>
+                        <td>
+                          <span className={getPriorityClassName(priority)}>{formatPriorityLabel(priority)}</span>
+                        </td>
+                        <td>
+                          <span className={styles.gpuBadge}>{gpu_profile}</span>
+                        </td>
                         <td>{formatDateTime(lastRunStarted)}</td>
                         <td>
                           {lastRunStatus ? (
@@ -789,7 +837,7 @@ const Jobs = (): JSX.Element => {
                 <div>
                   <h2 id="submit-job-modal-title">Submit Job</h2>
                   <p className={styles.modalDescription}>
-                    Define the runtime image, GPU profile, storage requirements, and optional input volume for your workload.
+                    Define the runtime image, priority, GPU profile, storage requirements, and optional input volume for your workload.
                   </p>
                 </div>
                 <button
@@ -861,6 +909,25 @@ const Jobs = (): JSX.Element => {
                   </label>
 
                   <label className={styles.formField}>
+                    <span className={styles.fieldLabel}>Priority</span>
+                    <select
+                      name="priority"
+                      value={priority}
+                      onChange={handlePriorityChange}
+                      className={styles.fieldControl}
+                      disabled={isSubmittingJob}
+                      required
+                    >
+                      {JOB_PRIORITIES.map((option) => (
+                        <option key={option} value={option}>
+                          {PRIORITY_LABELS[option]}
+                        </option>
+                      ))}
+                    </select>
+                    <span className={styles.fieldHint}>Scheduling importance for this job.</span>
+                  </label>
+
+                  <label className={styles.formField}>
                     <span className={styles.fieldLabel}>Storage (GB)</span>
                     <input
                       type="number"
@@ -878,7 +945,7 @@ const Jobs = (): JSX.Element => {
                     <span className={styles.fieldHint}>Requested storage capacity for the job output.</span>
                   </label>
 
-                  <label className={styles.formField}>
+                  <label className={`${styles.formField} ${styles.fullWidthField}`}>
                     <span className={styles.fieldLabel}>Input volume (optional)</span>
                     <span className={styles.fieldHint}>
                       Attach an existing input volume and inspect its objects before selecting it.

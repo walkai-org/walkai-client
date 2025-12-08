@@ -7,6 +7,21 @@ import styles from './JobDetail.module.css'
 const API_BASE = import.meta.env.VITE_API_BASE;
 const JOB_DETAIL_STALE_TIME_MS = 5_000
 const JOB_DETAIL_REFETCH_INTERVAL_MS = 5_000
+const JOB_PRIORITIES: JobPriority[] = ['low', 'medium', 'high', 'extra-high']
+const PRIORITY_LABELS: Record<JobPriority, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  'extra-high': 'Extra high',
+}
+const PRIORITY_STYLE_MAP: Record<JobPriority, string> = {
+  low: styles.priorityLow,
+  medium: styles.priorityMedium,
+  high: styles.priorityHigh,
+  'extra-high': styles.priorityExtraHigh,
+}
+
+type JobPriority = 'low' | 'medium' | 'high' | 'extra-high'
 
 type JobRunSummary = {
   id: number
@@ -20,10 +35,14 @@ type JobDetailRecord = {
   id: number
   image: string
   gpu_profile: string
+  priority: JobPriority
   submitted_at: string
   created_by_id: number
   runs: JobRunSummary[]
 }
+
+const isJobPriority = (value: unknown): value is JobPriority =>
+  typeof value === 'string' && JOB_PRIORITIES.includes(value as JobPriority)
 
 const isJobRunSummary = (value: unknown): value is JobRunSummary => {
   if (!value || typeof value !== 'object') return false
@@ -48,6 +67,7 @@ const isJobDetail = (value: unknown): value is JobDetailRecord => {
     typeof record.id === 'number' &&
     typeof record.image === 'string' &&
     typeof record.gpu_profile === 'string' &&
+    isJobPriority(record.priority) &&
     typeof record.submitted_at === 'string' &&
     typeof record.created_by_id === 'number' &&
     Array.isArray(record.runs) &&
@@ -99,6 +119,18 @@ const formatStatusLabel = (status: string): string =>
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
+
+const formatPriorityLabel = (priority: string | null | undefined): string => {
+  if (!priority) return 'Unknown'
+  if (isJobPriority(priority)) return PRIORITY_LABELS[priority]
+  return formatStatusLabel(priority)
+}
+
+const getPriorityClassName = (priority: string | null | undefined): string => {
+  const normalized = isJobPriority(priority) ? priority : null
+  const modifier = normalized ? PRIORITY_STYLE_MAP[normalized] : styles.priorityUnknown
+  return `${styles.priorityBadge} ${modifier}`.trim()
+}
 
 const getStatusStyleKey = (status: string): 'running' | 'pending' | 'failed' | 'succeeded' | 'unknown' => {
   const normalized = status.trim().toLowerCase()
@@ -170,7 +202,15 @@ const JobDetail = (): JSX.Element => {
               </div>
               <div>
                 <dt>GPU Profile</dt>
-                <dd>{job.gpu_profile}</dd>
+                <dd>
+                  <span className={styles.gpuBadge}>{job.gpu_profile}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>Priority</dt>
+                <dd>
+                  <span className={getPriorityClassName(job.priority)}>{formatPriorityLabel(job.priority)}</span>
+                </dd>
               </div>
               <div>
                 <dt>Submitted</dt>
