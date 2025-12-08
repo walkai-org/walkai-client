@@ -24,6 +24,7 @@ type JobRecord = {
   id: number
   image: string
   gpu_profile: string
+  priority: JobPriority
   submitted_at: string
   created_by_id: number
   latest_run: JobRun | null | undefined
@@ -36,7 +37,7 @@ type JobImageOption = {
   pushed_at: string
 }
 
-type JobPriority = 'low' | 'medium' | 'high' | 'extra_high'
+type JobPriority = 'low' | 'medium' | 'high' | 'extra-high'
 
 type JobSubmissionPayload = {
   image: string
@@ -77,13 +78,22 @@ const SECRETS_STALE_TIME_MS = 60_000
 const SECRET_DETAILS_STALE_TIME_MS = 60_000
 const INPUT_VOLUMES_STALE_TIME_MS = 15_000
 const INPUT_VOLUME_OBJECTS_MAX_KEYS = 50
-const JOB_PRIORITIES: JobPriority[] = ['low', 'medium', 'high', 'extra_high']
+const JOB_PRIORITIES: JobPriority[] = ['low', 'medium', 'high', 'extra-high']
 const PRIORITY_LABELS: Record<JobPriority, string> = {
   low: 'Low',
   medium: 'Medium',
   high: 'High',
-  extra_high: 'Extra high',
+  'extra-high': 'Extra high',
 }
+const PRIORITY_STYLE_MAP: Record<JobPriority, string> = {
+  low: styles.priorityLow,
+  medium: styles.priorityMedium,
+  high: styles.priorityHigh,
+  'extra-high': styles.priorityExtraHigh,
+}
+
+const isJobPriority = (value: unknown): value is JobPriority =>
+  typeof value === 'string' && JOB_PRIORITIES.includes(value as JobPriority)
 
 const isJobRun = (value: unknown): value is JobRun => {
   if (!value || typeof value !== 'object') return false
@@ -114,6 +124,7 @@ const isJobRecord = (value: unknown): value is JobRecord => {
     isString(record.gpu_profile) &&
     isString(record.submitted_at) &&
     typeof record.created_by_id === 'number' &&
+    isJobPriority(record.priority) &&
     (maybeLastRun === undefined || maybeLastRun === null || isJobRun(maybeLastRun))
   )
 }
@@ -317,6 +328,18 @@ const formatStatusLabel = (status: string): string =>
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
+
+const formatPriorityLabel = (priority: string | null | undefined): string => {
+  if (!priority) return 'Unknown'
+  if (isJobPriority(priority)) return PRIORITY_LABELS[priority]
+  return formatStatusLabel(priority)
+}
+
+const getPriorityClassName = (priority: string | null | undefined): string => {
+  const normalized = isJobPriority(priority) ? priority : null
+  const modifier = normalized ? PRIORITY_STYLE_MAP[normalized] : styles.priorityUnknown
+  return `${styles.priorityBadge} ${modifier}`.trim()
+}
 
 const getStatusStyleKey = (status: string): 'running' | 'pending' | 'failed' | 'succeeded' | 'unknown' => {
   const normalized = status.trim().toLowerCase()
@@ -748,6 +771,7 @@ const Jobs = (): JSX.Element => {
                 <tr>
                   <th scope="col">Job ID</th>
                   <th scope="col">Image</th>
+                  <th scope="col">Priority</th>
                   <th scope="col">GPU Profile</th>
                   <th scope="col">Last Run Started</th>
                   <th scope="col">Last Run Status</th>
@@ -756,12 +780,12 @@ const Jobs = (): JSX.Element => {
               <tbody>
                 {jobs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={styles.emptyCell}>
+                    <td colSpan={6} className={styles.emptyCell}>
                       No jobs available.
                     </td>
                   </tr>
                 ) : (
-                  jobs.map(({ id, image, gpu_profile, latest_run: lastRun }) => {
+                  jobs.map(({ id, image, priority, gpu_profile, latest_run: lastRun }) => {
                     const lastRunStatus = lastRun?.status
                     const lastRunStarted = lastRun?.started_at ?? null
 
@@ -777,7 +801,12 @@ const Jobs = (): JSX.Element => {
                       >
                         <td>#{id}</td>
                         <td className={styles.monospace}>{image}</td>
-                        <td>{gpu_profile}</td>
+                        <td>
+                          <span className={getPriorityClassName(priority)}>{formatPriorityLabel(priority)}</span>
+                        </td>
+                        <td>
+                          <span className={styles.gpuBadge}>{gpu_profile}</span>
+                        </td>
                         <td>{formatDateTime(lastRunStarted)}</td>
                         <td>
                           {lastRunStatus ? (

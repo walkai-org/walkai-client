@@ -347,7 +347,9 @@ const Dashboard = (): JSX.Element => {
                         <span title={name}>{cropPodName(name)}</span>
                       </td>
                       <td className={styles.monospace}>{namespace}</td>
-                      <td>{formatGpuLabel(gpu)}</td>
+                      <td>
+                        <span className={styles.gpuBadge}>{formatGpuLabel(gpu)}</span>
+                      </td>
                       <td>
                         <span className={getStatusClassName(status)}>{formatStatusLabel(status)}</span>
                       </td>

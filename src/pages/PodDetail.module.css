@@ -138,6 +138,18 @@
   word-break: break-word;
 }
 
+.gpuBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 .statusBadge {
   display: inline-flex;
   align-items: center;

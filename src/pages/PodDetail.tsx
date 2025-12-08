@@ -332,7 +332,9 @@ const PodDetail = (): JSX.Element => {
               </div>
               <div>
                 <dt>GPU Profile</dt>
-                <dd>{formatGpuLabel(pod.gpu)}</dd>
+                <dd>
+                  <span className={styles.gpuBadge}>{formatGpuLabel(pod.gpu)}</span>
+                </dd>
               </div>
               <div>
                 <dt>Status</dt>
