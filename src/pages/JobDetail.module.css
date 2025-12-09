@@ -65,6 +65,14 @@
   box-shadow: 0 10px 25px rgba(14, 165, 233, 0.35);
 }
 
+.linkButton:disabled {
+  background: #cbd5f1;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  opacity: 0.9;
+}
+
 .state {
   margin: 0;
   padding: 0.85rem 1.25rem;

@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { JSX } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import styles from './JobDetail.module.css'
@@ -100,6 +100,39 @@ const fetchJobDetail = async (jobId: string): Promise<JobDetailRecord> => {
   return payload
 }
 
+const createJobRun = async (jobId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE}/jobs/${jobId}/runs`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    let detail = `Failed to trigger a new run for job #${jobId} (${response.status}).`
+    try {
+      const payload = (await response.json()) as { detail?: unknown }
+      const errorDetail = payload?.detail
+      if (typeof errorDetail === 'string' && errorDetail.trim()) {
+        detail = errorDetail
+      } else if (Array.isArray(errorDetail)) {
+        const message = errorDetail
+          .map((item) => {
+            if (!item || typeof item !== 'object') return null
+            const maybeRecord = item as { msg?: unknown }
+            return typeof maybeRecord.msg === 'string' ? maybeRecord.msg : null
+          })
+          .filter((msg): msg is string => Boolean(msg))
+          .join('\n')
+        if (message) {
+          detail = message
+        }
+      }
+    } catch {
+      // ignore JSON parsing errors in the error branch
+    }
+    throw new Error(detail)
+  }
+}
+
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -145,6 +178,8 @@ const getStatusStyleKey = (status: string): 'running' | 'pending' | 'failed' | '
 const JobDetail = (): JSX.Element => {
   const { jobId: routeJobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [rerunError, setRerunError] = useState<string | null>(null)
 
   const jobId = routeJobId ?? ''
 
@@ -160,6 +195,21 @@ const JobDetail = (): JSX.Element => {
   const job = jobQuery.data
 
   const runs = useMemo(() => job?.runs ?? [], [job])
+  const rerunMutation = useMutation<void, Error>({
+    mutationFn: async () => {
+      if (!jobId) {
+        throw new Error('Missing job identifier for rerun.')
+      }
+      await createJobRun(jobId)
+    },
+    onSuccess: async () => {
+      setRerunError(null)
+      await queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', jobId] })
+    },
+    onError: (error) => {
+      setRerunError(error.message || 'Failed to start a new run.')
+    },
+  })
 
   const getStatusClassName = (status: string): string => {
     const key = getStatusStyleKey(status)
@@ -171,6 +221,13 @@ const JobDetail = (): JSX.Element => {
     navigate(-1)
   }
 
+  const handleRerun = () => {
+    setRerunError(null)
+    rerunMutation.mutate()
+  }
+
+  const isRerunDisabled = !job || jobQuery.isPending || rerunMutation.isPending
+
   return (
     <section className={styles.jobDetail}>
       <header className={styles.header}>
@@ -181,6 +238,14 @@ const JobDetail = (): JSX.Element => {
         <div className={styles.headerActions}>
           <button type="button" className={styles.backButton} onClick={handleBack}>
             Back
+          </button>
+          <button
+            type="button"
+            className={styles.linkButton}
+            onClick={handleRerun}
+            disabled={isRerunDisabled}
+          >
+            {rerunMutation.isPending ? 'Starting rerun…' : 'Rerun job'}
           </button>
         </div>
       </header>
@@ -228,6 +293,7 @@ const JobDetail = (): JSX.Element => {
               <h2 id="job-runs-heading">Runs</h2>
               <p>Review each run’s timing and status, then open a run for detailed information and logs.</p>
             </div>
+            {rerunError ? <p className={`${styles.state} ${styles.stateError}`}>{rerunError}</p> : null}
 
             {runs.length === 0 ? (
               <p className={styles.state}>This job has not executed any runs yet.</p>
