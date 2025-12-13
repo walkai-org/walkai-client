@@ -31,7 +31,8 @@
 }
 
 .backButton,
-.linkButton {
+.linkButton,
+.addScheduleButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -55,6 +56,16 @@
   transform: translateY(-1px);
 }
 
+.addScheduleButton {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+}
+
+.addScheduleButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(22, 163, 74, 0.35);
+}
+
 .linkButton {
   background: linear-gradient(135deg, #38bdf8, #0ea5e9);
   color: #ffffff;
@@ -65,7 +76,8 @@
   box-shadow: 0 10px 25px rgba(14, 165, 233, 0.35);
 }
 
-.linkButton:disabled {
+.linkButton:disabled,
+.addScheduleButton:disabled {
   background: #cbd5f1;
   cursor: not-allowed;
   box-shadow: none;
@@ -164,10 +176,202 @@
   font-size: 0.95rem;
 }
 
+.schedulesSection {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.schedulesHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.schedulesHeading h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.schedulesHeading p {
+  margin: 0;
+  color: #64748b;
+  max-width: 32rem;
+  font-size: 0.95rem;
+}
+
 .tableWrapper {
   border: 1px solid #e2e8f0;
   border-radius: 0.9rem;
   overflow: hidden;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+}
+
+.modal {
+  position: relative;
+  width: min(480px, 100%);
+  background: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.modalDescription {
+  margin: 0.25rem 0 0;
+  color: #475569;
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.closeButton:hover {
+  background: rgba(100, 116, 139, 0.1);
+  color: #0f172a;
+}
+
+.closeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fieldGroup label {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.select,
+.textInput {
+  border: 1px solid #cbd5f5;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.select:focus,
+.textInput:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.helperText {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.formError {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.modalSecondaryButton {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.modalSecondaryButton:hover {
+  background: #e2e8f0;
+  border-color: #cbd5f5;
+}
+
+.modalSecondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modalPrimaryButton {
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  padding: 0.65rem 1.35rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+}
+
+.modalPrimaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+}
+
+.modalPrimaryButton:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .table {
@@ -195,6 +399,11 @@
 
 .actionsHeading {
   text-align: right;
+}
+
+.actionsCell {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .table tbody tr:last-of-type td {
@@ -232,6 +441,31 @@
 .detailsButton:hover {
   background: #cbd5f1;
   transform: translateY(-1px);
+}
+
+.deleteButton {
+  margin: 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.deleteButton:hover {
+  background: #fecdd3;
+  transform: translateY(-1px);
+}
+
+.deleteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  background: #ffe4e6;
 }
 
 .statusBadge {
@@ -339,6 +573,11 @@
   }
 
   .runsHeading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .schedulesHeading {
     flex-direction: column;
     align-items: flex-start;
   }
