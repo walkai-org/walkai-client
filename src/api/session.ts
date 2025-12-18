@@ -4,6 +4,10 @@ export type SessionUser = {
   id: number
   email: string
   role?: string
+  high_priority_quota_minutes: number
+  high_priority_minutes_used: number
+  quota_resets_at: string | null
+  high_priority_minutes_remaining: number | null
 }
 
 export class UnauthorizedSessionError extends Error {
@@ -16,7 +20,21 @@ export class UnauthorizedSessionError extends Error {
 const isSessionUser = (value: unknown): value is SessionUser => {
   if (!value || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
-  return typeof record.id === 'number' && typeof record.email === 'string'
+  const hasQuotaReset =
+    'quota_resets_at' in record && (typeof record.quota_resets_at === 'string' || record.quota_resets_at === null)
+
+  const hasRemaining =
+    'high_priority_minutes_remaining' in record &&
+    (typeof record.high_priority_minutes_remaining === 'number' || record.high_priority_minutes_remaining === null)
+
+  return (
+    typeof record.id === 'number' &&
+    typeof record.email === 'string' &&
+    typeof record.high_priority_quota_minutes === 'number' &&
+    typeof record.high_priority_minutes_used === 'number' &&
+    hasQuotaReset &&
+    hasRemaining
+  )
 }
 
 export const fetchSession = async (): Promise<SessionUser> => {
@@ -46,4 +64,3 @@ export const fetchSession = async (): Promise<SessionUser> => {
 
   return payload
 }
-

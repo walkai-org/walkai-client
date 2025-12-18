@@ -128,6 +128,13 @@ const formatDateTime = (value: string | null): string => {
   return date.toLocaleString()
 }
 
+const formatQuotaResetAt = (value: string | null): string => {
+  if (!value) return 'Not scheduled'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown'
+  return date.toLocaleString()
+}
+
 const Profile = (): JSX.Element => {
   const queryClient = useQueryClient()
 
@@ -216,6 +223,15 @@ const Profile = (): JSX.Element => {
   const deletingTokenId = isDeletingToken ? deleteTokenMutation.variables : null
   const handleDismissGeneratedToken = () => setGeneratedTokenValue(null)
   const handleDismissEmptyTokensNotice = () => setEmptyTokensNoticeDismissed(true)
+  const quotaMinutes = sessionQuery.data?.high_priority_quota_minutes ?? 0
+  const usedMinutes = sessionQuery.data?.high_priority_minutes_used ?? 0
+  const remainingMinutes =
+    sessionQuery.data?.high_priority_minutes_remaining ?? Math.max(quotaMinutes - usedMinutes, 0)
+  const totalForBar = Math.max(quotaMinutes, usedMinutes + remainingMinutes)
+  const usedPercent = totalForBar > 0 ? Math.min(100, (usedMinutes / totalForBar) * 100) : 0
+  const remainingPercent =
+    totalForBar > 0 ? Math.max(0, Math.min(100 - usedPercent, (remainingMinutes / totalForBar) * 100)) : 0
+  const isOverQuota = remainingMinutes <= 0 || usedMinutes > quotaMinutes
 
   return (
     <section className={styles.profile}>
@@ -393,6 +409,54 @@ const Profile = (): JSX.Element => {
           </div>
         </section>
       </div>
+
+      <section className={styles.card} aria-labelledby="profile-usage">
+        <div className={styles.cardHeader}>
+          <div>
+            <h2 id="profile-usage">Usage</h2>
+            <p>Track your high priority minutes allocation.</p>
+          </div>
+        </div>
+
+        {sessionQuery.isPending ? (
+          <p className={styles.muted}>Loading usage…</p>
+        ) : sessionQuery.isError ? (
+          <p className={styles.error}>Unable to load usage details. Please refresh.</p>
+        ) : (
+          <>
+            <div className={styles.usageBar} role="presentation" aria-hidden="true">
+              <span
+                className={`${styles.usageUsed} ${isOverQuota ? styles.usageUsedOver : ''}`}
+                style={{ width: `${usedPercent}%` }}
+              />
+              <span className={styles.usageRemaining} style={{ width: `${remainingPercent}%` }} />
+            </div>
+            <dl className={styles.usageStats}>
+              <div>
+                <dt>Total quota</dt>
+                <dd>{quotaMinutes.toLocaleString()} min</dd>
+              </div>
+              <div>
+                <dt>Used</dt>
+                <dd className={styles.usageStatValue}>
+                  <span className={`${styles.usageDot} ${styles.usageDotUsed}`} aria-hidden="true" />
+                  {usedMinutes.toLocaleString()} min
+                </dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd className={styles.usageStatValue}>
+                  <span className={`${styles.usageDot} ${isOverQuota ? styles.usageDotRemainingOver : styles.usageDotRemaining}`} aria-hidden="true" />
+                  {remainingMinutes.toLocaleString()} min
+                </dd>
+              </div>
+            </dl>
+            <p className={styles.usageReset}>
+              Resets: {formatQuotaResetAt(sessionQuery.data?.quota_resets_at ?? null)}
+            </p>
+          </>
+        )}
+      </section>
     </section>
   )
 }

@@ -101,6 +101,19 @@
   color: #b91c1c;
 }
 
+.inlineLink {
+  color: #0284c7;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(2, 132, 199, 0.45);
+}
+
+.inlineLink:hover {
+  color: #0369a1;
+  text-decoration-color: rgba(3, 105, 161, 0.75);
+}
+
 .metaSection {
   background: #ffffff;
   border: 1px solid #e2e8f0;
