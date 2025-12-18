@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { FormEvent, JSX } from 'react'
+import type { FormEvent, JSX, ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import styles from './JobDetail.module.css'
 
@@ -260,6 +260,24 @@ const formatStatusLabel = (status: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
 
+const PROFILE_USAGE_PATH = '/app/profile'
+const formatQuotaAwareError = (message: string): ReactNode => {
+  const normalized = message.toLowerCase()
+  const isQuotaExceeded =
+    normalized.includes('high-priority quota exceeded') || normalized.includes('high priority quota exceeded')
+  if (isQuotaExceeded) {
+    return (
+      <>
+        <span>{message}</span>{' '}
+        <a className={styles.inlineLink} href={PROFILE_USAGE_PATH}>
+          See usage
+        </a>
+      </>
+    )
+  }
+  return message
+}
+
 const formatPriorityLabel = (priority: string | null | undefined): string => {
   if (!priority) return 'Unknown'
   if (isJobPriority(priority)) return PRIORITY_LABELS[priority]
@@ -286,7 +304,7 @@ const JobDetail = (): JSX.Element => {
   const { jobId: routeJobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [rerunError, setRerunError] = useState<string | null>(null)
+  const [rerunError, setRerunError] = useState<ReactNode | null>(null)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
   const [deletingScheduleId, setDeletingScheduleId] = useState<number | null>(null)
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false)
@@ -331,7 +349,8 @@ const JobDetail = (): JSX.Element => {
       await queryClient.invalidateQueries({ queryKey: ['jobs', 'detail', jobId] })
     },
     onError: (error) => {
-      setRerunError(error.message || 'Failed to start a new run.')
+      const message = error.message || 'Failed to start a new run.'
+      setRerunError(formatQuotaAwareError(message))
     },
   })
 

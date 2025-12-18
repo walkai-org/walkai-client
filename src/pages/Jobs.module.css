@@ -457,6 +457,19 @@
   color: #b91c1c;
 }
 
+.inlineLink {
+  color: #0ea5e9;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(14, 165, 233, 0.4);
+}
+
+.inlineLink:hover {
+  color: #0284c7;
+  text-decoration-color: rgba(2, 132, 199, 0.7);
+}
+
 .primaryAction {
   border: none;
   background: #2563eb;

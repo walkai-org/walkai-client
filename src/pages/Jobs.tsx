@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent, JSX, KeyboardEvent, MouseEvent } from 'react'
+import type { ChangeEvent, FormEvent, JSX, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchSecretDetail, fetchSecrets, type SecretSummary } from '../api/secrets'
 import { GPU_PROFILES, type GPUProfile } from '../constants/gpuProfiles'
@@ -78,6 +78,24 @@ const SECRETS_STALE_TIME_MS = 60_000
 const SECRET_DETAILS_STALE_TIME_MS = 60_000
 const INPUT_VOLUMES_STALE_TIME_MS = 15_000
 const INPUT_VOLUME_OBJECTS_MAX_KEYS = 50
+const PROFILE_USAGE_PATH = '/app/profile'
+
+const formatQuotaAwareError = (message: string): ReactNode => {
+  const normalized = message.toLowerCase()
+  const isQuotaExceeded =
+    normalized.includes('high-priority quota exceeded') || normalized.includes('high priority quota exceeded')
+  if (isQuotaExceeded) {
+    return (
+      <>
+        <span>{message}</span>{' '}
+        <a className={styles.inlineLink} href={PROFILE_USAGE_PATH}>
+          See usage
+        </a>
+      </>
+    )
+  }
+  return message
+}
 const JOB_PRIORITIES: JobPriority[] = ['low', 'medium', 'high', 'extra-high']
 const PRIORITY_LABELS: Record<JobPriority, string> = {
   low: 'Low',
@@ -395,7 +413,7 @@ const Jobs = (): JSX.Element => {
   const [volumePreviewId, setVolumePreviewId] = useState<number | null>(null)
   const [isVolumesModalOpen, setIsVolumesModalOpen] = useState(false)
   const [volumeSearchTerm, setVolumeSearchTerm] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<ReactNode | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRegistryModalOpen, setIsRegistryModalOpen] = useState(false)
@@ -719,7 +737,7 @@ const Jobs = (): JSX.Element => {
         error instanceof Error && error.message.trim()
           ? error.message
           : 'Failed to submit job. Please try again.'
-      setFormError(message)
+      setFormError(formatQuotaAwareError(message))
       setSuccessMessage(null)
     }
   }

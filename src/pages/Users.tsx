@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent, JSX, MouseEvent } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import styles from './Users.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -11,6 +11,10 @@ type UserRecord = {
   id: number
   email: string
   role: string
+  high_priority_quota_minutes: number
+  high_priority_minutes_used: number
+  quota_resets_at: string | null
+  high_priority_minutes_remaining?: number | null
 }
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
@@ -19,7 +23,24 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
 const isUserRecord = (value: unknown): value is UserRecord => {
   if (!value || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
-  return typeof record.id === 'number' && typeof record.email === 'string' && typeof record.role === 'string'
+  const hasOptionalRemaining =
+    record.high_priority_minutes_remaining === undefined ||
+    record.high_priority_minutes_remaining === null ||
+    typeof record.high_priority_minutes_remaining === 'number'
+
+  const hasQuotaReset =
+    'quota_resets_at' in record &&
+    (typeof record.quota_resets_at === 'string' || record.quota_resets_at === null)
+
+  return (
+    typeof record.id === 'number' &&
+    typeof record.email === 'string' &&
+    typeof record.role === 'string' &&
+    typeof record.high_priority_quota_minutes === 'number' &&
+    typeof record.high_priority_minutes_used === 'number' &&
+    hasQuotaReset &&
+    hasOptionalRemaining
+  )
 }
 
 const fetchUsers = async (): Promise<UserRecord[]> => {
@@ -30,7 +51,7 @@ const fetchUsers = async (): Promise<UserRecord[]> => {
     try {
       const data = await res.json()
       if (data?.detail) detail = Array.isArray(data.detail) ? data.detail[0]?.msg || detail : data.detail
-    } catch {}
+    } catch { }
     throw new Error(detail)
   }
 
@@ -48,7 +69,15 @@ const fetchUsers = async (): Promise<UserRecord[]> => {
   return payload
 }
 
+const formatQuotaResetAt = (value: string | null): string => {
+  if (!value) return 'Not scheduled'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown'
+  return date.toLocaleString()
+}
+
 const Users = (): JSX.Element => {
+  const queryClient = useQueryClient()
   const {
     data: users = [],
     isLoading: isLoadingUsers,
@@ -65,6 +94,10 @@ const Users = (): JSX.Element => {
   const [isInviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteFeedback, setInviteFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [quotaUser, setQuotaUser] = useState<UserRecord | null>(null)
+  const [quotaValue, setQuotaValue] = useState('')
+  const [quotaError, setQuotaError] = useState<string | null>(null)
+  const [quotaSuccess, setQuotaSuccess] = useState<string | null>(null)
 
   const createInvitationMutation = useMutation<void, Error, string>({
     mutationFn: async (email) => {
@@ -81,12 +114,41 @@ const Users = (): JSX.Element => {
       try {
         const data = await res.json()
         if (data?.detail) detail = Array.isArray(data.detail) ? data.detail[0]?.msg || detail : data.detail
-      } catch {}
+      } catch { }
       throw new Error(detail)
     },
   })
 
   const isSubmittingInvite = createInvitationMutation.isPending
+  const updateQuotaMutation = useMutation<void, Error, { userId: number; quota: number }>({
+    mutationFn: async ({ userId, quota }) => {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}/quota`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ high_priority_quota_minutes: quota }),
+      })
+
+      if (res.ok) return
+
+      let detail = 'Failed to update quota. Please try again.'
+      try {
+        const data = await res.json()
+        if (data?.detail) detail = Array.isArray(data.detail) ? data.detail[0]?.msg || detail : data.detail
+      } catch { }
+      throw new Error(detail)
+    },
+    onSuccess: async (_, { quota }) => {
+      setQuotaSuccess('Quota updated.')
+      setQuotaError(null)
+      setQuotaValue(String(quota))
+      await queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (error) => {
+      setQuotaSuccess(null)
+      setQuotaError(error.message || 'Failed to update quota.')
+    },
+  })
 
   useEffect(() => {
     if (!inviteFeedback) return
@@ -137,6 +199,55 @@ const Users = (): JSX.Element => {
     setInviteFeedback(null)
   }
 
+  useEffect(() => {
+    if (!quotaSuccess || !quotaUser) return
+    const timeoutId = window.setTimeout(() => {
+      setQuotaUser(null)
+      setQuotaValue('')
+      setQuotaError(null)
+      setQuotaSuccess(null)
+    }, 1000)
+    return () => window.clearTimeout(timeoutId)
+  }, [quotaSuccess, quotaUser])
+
+  const handleOpenQuotaModal = (user: UserRecord) => {
+    setQuotaUser(user)
+    setQuotaValue(String(user.high_priority_quota_minutes))
+    setQuotaError(null)
+    setQuotaSuccess(null)
+  }
+
+  const handleCloseQuotaModal = () => {
+    if (updateQuotaMutation.isPending) return
+    setQuotaUser(null)
+    setQuotaValue('')
+    setQuotaError(null)
+    setQuotaSuccess(null)
+  }
+
+  const handleQuotaChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setQuotaValue(event.target.value)
+    if (quotaError) setQuotaError(null)
+    if (quotaSuccess) setQuotaSuccess(null)
+  }
+
+  const handleQuotaSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!quotaUser || updateQuotaMutation.isPending) return
+
+    const parsed = Number(quotaValue)
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      setQuotaError('Quota must be a non-negative whole number of minutes.')
+      return
+    }
+
+    try {
+      await updateQuotaMutation.mutateAsync({ userId: quotaUser.id, quota: parsed })
+    } catch {
+      // handled in onError
+    }
+  }
+
   return (
     <section className={styles.users}>
       <header className={styles.header}>
@@ -151,9 +262,8 @@ const Users = (): JSX.Element => {
 
       {inviteFeedback ? (
         <div
-          className={`${styles.feedback} ${
-            inviteFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError
-          }`}
+          className={`${styles.feedback} ${inviteFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError
+            }`}
           role={inviteFeedback.type === 'success' ? 'status' : 'alert'}
           aria-live={inviteFeedback.type === 'success' ? 'polite' : 'assertive'}
         >
@@ -172,39 +282,136 @@ const Users = (): JSX.Element => {
               <th scope="col">User ID</th>
               <th scope="col">Email</th>
               <th scope="col">Role</th>
+              <th scope="col">High priority quota (min)</th>
+              <th scope="col">High priority used (min)</th>
+              <th scope="col">Quota resets at</th>
+              <th scope="col" className={styles.actionsCol}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {isLoadingUsers ? (
               <tr>
-                <td colSpan={3} className={styles.tableMessage}>
+                <td colSpan={7} className={styles.tableMessage}>
                   Loading users...
                 </td>
               </tr>
             ) : isUsersError ? (
               <tr>
-                <td colSpan={3} className={styles.tableMessageError}>
+                <td colSpan={7} className={styles.tableMessageError}>
                   {getErrorMessage(usersError, 'Unable to load users. Please try again later.')}
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={3} className={styles.tableMessage}>
+                <td colSpan={7} className={styles.tableMessage}>
                   No users found.
                 </td>
               </tr>
             ) : (
-              users.map(({ id, email, role }) => (
-                <tr key={id}>
-                  <td>{id}</td>
-                  <td>{email}</td>
-                  <td>{role}</td>
-                </tr>
-              ))
+              users.map(
+                ({ id, email, role, high_priority_quota_minutes, high_priority_minutes_used, quota_resets_at }) => (
+                  <tr key={id}>
+                    <td>{id}</td>
+                    <td>{email}</td>
+                    <td>{role}</td>
+                    <td>{high_priority_quota_minutes.toLocaleString()}</td>
+                    <td>{high_priority_minutes_used.toLocaleString()}</td>
+                    <td>{formatQuotaResetAt(quota_resets_at)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className={styles.inlineButton}
+                        onClick={() =>
+                          handleOpenQuotaModal({
+                            id,
+                            email,
+                            role,
+                            high_priority_quota_minutes,
+                            high_priority_minutes_used,
+                            quota_resets_at,
+                          })
+                        }
+                      >
+                        Edit quota
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )
             )}
           </tbody>
         </table>
       </div>
+
+      {quotaUser ? (
+        <div className={styles.modalOverlay} role="presentation" onClick={handleCloseQuotaModal}>
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quotaModalTitle"
+            onClick={handleModalClick}
+          >
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={handleCloseQuotaModal}
+              aria-label="Close quota dialog"
+              disabled={updateQuotaMutation.isPending}
+            >
+              &times;
+            </button>
+            <h2 id="quotaModalTitle" className={styles.modalTitle}>
+              Update quota
+            </h2>
+            <p className={styles.modalDescription}>
+              Set the high-priority quota for <strong>{quotaUser.email}</strong>.
+            </p>
+
+            {quotaError ? (
+              <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
+                {quotaError}
+              </div>
+            ) : null}
+            {quotaSuccess ? (
+              <div className={`${styles.feedback} ${styles.feedbackSuccess}`} role="status">
+                {quotaSuccess}
+              </div>
+            ) : null}
+
+            <form className={styles.modalForm} onSubmit={handleQuotaSubmit}>
+              <label htmlFor="quotaInput">
+                High priority quota (minutes)
+                <input
+                  id="quotaInput"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={quotaValue}
+                  onChange={handleQuotaChange}
+                  disabled={updateQuotaMutation.isPending}
+                  required
+                />
+              </label>
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={handleCloseQuotaModal}
+                  disabled={updateQuotaMutation.isPending}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={styles.primaryAction} disabled={updateQuotaMutation.isPending}>
+                  {updateQuotaMutation.isPending ? 'Saving...' : 'Save quota'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isInviteOpen ? (
         <div className={styles.modalOverlay} role="presentation" onClick={handleCloseInvite}>
