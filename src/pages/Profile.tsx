@@ -358,7 +358,7 @@ const Profile = (): JSX.Element => {
                     <div className={styles.tokenMeta}>
                       <h3>{token.name}</h3>
                       <p>
-                        Created: {formatDateTime(token.createdAt)} · Last used: {formatDateTime(token.lastUsedAt)}
+                        Created: {formatDateTime(token.createdAt)}
                       </p>
                     </div>
                     <div className={styles.deleteControls}>
