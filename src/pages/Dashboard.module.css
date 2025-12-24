@@ -318,6 +318,11 @@
   color: #92400e;
 }
 
+.terminating {
+  background: rgba(249, 115, 22, 0.15);
+  color: #c2410c;
+}
+
 .failed {
   background: rgba(248, 113, 113, 0.15);
   color: #991b1b;

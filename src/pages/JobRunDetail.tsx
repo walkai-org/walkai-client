@@ -111,9 +111,10 @@ const formatStatusLabel = (status: string): string =>
 
 const getStatusStyleKey = (
   status: string,
-): 'running' | 'pending' | 'failed' | 'succeeded' | 'unknown' => {
+): 'running' | 'pending' | 'terminating' | 'failed' | 'succeeded' | 'unknown' => {
   const normalized = status.trim().toLowerCase()
   if (normalized.includes('run')) return 'running'
+  if (normalized.includes('terminat')) return 'terminating'
   if (normalized.includes('pend')) return 'pending'
   if (normalized.includes('fail') || normalized.includes('error')) return 'failed'
   if (normalized.includes('succ') || normalized.includes('compl')) return 'succeeded'
