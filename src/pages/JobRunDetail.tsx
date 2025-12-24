@@ -24,7 +24,9 @@ type JobRunDetailRecord = {
   k8s_pod_name: string
   k8s_job_name: string
   started_at: string | null
+  first_started_at: string | null
   finished_at: string | null
+  attempts: number
   output_volume: VolumeInfo | null
   input_volume: VolumeInfo | null
 }
@@ -54,7 +56,9 @@ const isJobRunDetail = (value: unknown): value is JobRunDetailRecord => {
     typeof record.k8s_pod_name === 'string' &&
     typeof record.k8s_job_name === 'string' &&
     isNullableString(record.started_at) &&
+    isNullableString(record.first_started_at) &&
     isNullableString(record.finished_at) &&
+    typeof record.attempts === 'number' &&
     (record.output_volume === null || isVolumeInfo(record.output_volume)) &&
     (record.input_volume === null || isVolumeInfo(record.input_volume))
   )
@@ -356,8 +360,16 @@ const JobRunDetail = (): JSX.Element => {
                   <dd>{formatDateTime(run.started_at)}</dd>
                 </div>
                 <div>
+                  <dt>First Started</dt>
+                  <dd>{formatDateTime(run.first_started_at)}</dd>
+                </div>
+                <div>
                   <dt>Finished</dt>
                   <dd>{formatDateTime(run.finished_at)}</dd>
+                </div>
+                <div>
+                  <dt>Attempts</dt>
+                  <dd>{run.attempts}</dd>
                 </div>
                 <div>
                   <dt>K8s Job</dt>
