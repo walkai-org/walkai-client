@@ -276,6 +276,11 @@
   color: #92400e;
 }
 
+.terminating {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
 .failed {
   background: #fee2e2;
   color: #b91c1c;
