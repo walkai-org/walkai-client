@@ -1,4 +1,4 @@
-import type { ComponentType, JSX, SVGProps } from 'react'
+import type { ComponentType, JSX, ReactNode, SVGProps } from 'react'
 import { NavLink } from 'react-router-dom'
 import styles from './Sidebar.module.css'
 
@@ -16,7 +16,7 @@ export type SidebarNavItem = {
 
 type SidebarProps = {
   items: SidebarNavItem[]
-  title?: string
+  title?: ReactNode
   profileItem?: SidebarNavItem
   onLogout?: () => void
   logoutLabel?: string

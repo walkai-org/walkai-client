@@ -10,7 +10,7 @@
 }
 
 .card {
-  width: min(420px, 100%);
+  width: min(520px, 100%);
   backdrop-filter: blur(18px);
   background: rgba(15, 23, 42, 0.85);
   border-radius: 1.5rem;
@@ -18,21 +18,20 @@
   color: #f8fafc;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0.5rem;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.5);
 }
 
-.branding h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.branding {
+  display: flex;
+  justify-content: center;
 }
 
-.branding p {
-  margin: 0.75rem 0 0;
-  color: rgba(226, 232, 240, 0.85);
-  line-height: 1.6;
+.logo {
+  display: block;
+  width: min(450px, 100%);
+  height: auto;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.35));
 }
 
 .content {
@@ -44,9 +43,5 @@
 @media (max-width: 520px) {
   .card {
     padding: 2rem;
-  }
-
-  .branding h1 {
-    font-size: 1.5rem;
   }
 }
