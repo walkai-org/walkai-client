@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import type { JSX } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
+import logo from '../assets/walkai_logo_final.png'
 import Sidebar, { type SidebarNavItem } from '../components/sidebar/Sidebar'
 import { DashboardIcon, JobsIcon, ProfileIcon, SecretsIcon, UsersIcon, VolumesIcon } from '../components/icons'
 import styles from './AdminLayout.module.css'
@@ -72,7 +73,7 @@ const AdminLayout = (): JSX.Element => {
     <div className={styles.container}>
       <Sidebar
         items={navItems}
-        title="Walk:AI"
+        title={<img src={logo} alt="Walk:AI logo" />}
         profileItem={profileItem}
         onLogout={handleLogout}
         logoutLabel={isLoggingOut ? 'Logging out...' : 'Log out'}
