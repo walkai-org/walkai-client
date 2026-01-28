@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent, JSX } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchSession, type SessionUser } from '../api/session'
@@ -150,6 +150,8 @@ const formatQuotaResetAt = (value: string | null): string => {
 
 const Profile = (): JSX.Element => {
   const queryClient = useQueryClient()
+  const clusterResetTimerRef = useRef<number | null>(null)
+  const lastSubmittedClusterRef = useRef<{ url: string; token: string } | null>(null)
 
   const [tokenName, setTokenName] = useState('')
   const [tokenNameError, setTokenNameError] = useState<string | null>(null)
@@ -201,9 +203,32 @@ const Profile = (): JSX.Element => {
     onSuccess: () => {
       setClusterSuccess('Cluster configuration saved.')
       setClusterError(null)
-      setClusterToken('')
+      if (clusterResetTimerRef.current) {
+        window.clearTimeout(clusterResetTimerRef.current)
+      }
+      clusterResetTimerRef.current = window.setTimeout(() => {
+        setClusterUrl((current) =>
+          lastSubmittedClusterRef.current?.url === current ? '' : current,
+        )
+        setClusterToken((current) =>
+          lastSubmittedClusterRef.current?.token === current ? '' : current,
+        )
+        setClusterSuccess(null)
+        if (clusterResetTimerRef.current) {
+          window.clearTimeout(clusterResetTimerRef.current)
+          clusterResetTimerRef.current = null
+        }
+      }, 3_000)
     },
   })
+
+  useEffect(() => {
+    return () => {
+      if (clusterResetTimerRef.current) {
+        window.clearTimeout(clusterResetTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleTokenNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     setTokenName(event.target.value)
@@ -245,6 +270,7 @@ const Profile = (): JSX.Element => {
     }
 
     try {
+      lastSubmittedClusterRef.current = { url: trimmedUrl, token: trimmedToken }
       await clusterConfigMutation.mutateAsync({ clusterUrl: trimmedUrl, clusterToken: trimmedToken })
     } catch (error) {
       setClusterError(getErrorMessage(error, 'Unable to save cluster configuration. Please try again.'))
@@ -287,7 +313,8 @@ const Profile = (): JSX.Element => {
   const isAdmin = sessionQuery.data?.role === 'admin'
 
   return (
-    <section className={styles.profile}>
+    <>
+      <section className={styles.profile}>
       <header className={styles.header}>
         <div>
           <h1>Profile</h1>
@@ -511,52 +538,53 @@ const Profile = (): JSX.Element => {
           </>
         )}
       </section>
-
-      {isAdmin ? (
-        <section className={styles.card} aria-labelledby="profile-cluster">
-          <div className={styles.cardHeader}>
-            <div>
-              <h2 id="profile-cluster">Cluster</h2>
-              <p>Configure the cluster connection details for Walk:AI.</p>
-            </div>
-          </div>
-
-          <form className={styles.clusterForm} onSubmit={handleClusterSubmit} autoComplete="off">
-            <label htmlFor="cluster-url">Cluster URL</label>
-            <input
-              id="cluster-url"
-              name="clusterUrl"
-              type="text"
-              value={clusterUrl}
-              onChange={handleClusterFieldChange(setClusterUrl)}
-              placeholder="https://cluster.example.com"
-              autoComplete="off"
-              required
-              disabled={clusterConfigMutation.isPending}
-            />
-
-            <label htmlFor="cluster-token">Cluster token</label>
-            <input
-              id="cluster-token"
-              name="clusterToken"
-              type="password"
-              value={clusterToken}
-              onChange={handleClusterFieldChange(setClusterToken)}
-              autoComplete="new-password"
-              required
-              disabled={clusterConfigMutation.isPending}
-            />
-
-            <button type="submit" disabled={clusterConfigMutation.isPending}>
-              {clusterConfigMutation.isPending ? 'Saving…' : 'Save cluster'}
-            </button>
-
-            {clusterError ? <p className={styles.fieldError}>{clusterError}</p> : null}
-            {clusterSuccess ? <p className={styles.success}>{clusterSuccess}</p> : null}
-          </form>
-        </section>
-      ) : null}
     </section>
+
+    {isAdmin ? (
+      <section className={styles.card} aria-labelledby="profile-cluster">
+        <div className={styles.cardHeader}>
+          <div>
+            <h2 id="profile-cluster">Cluster</h2>
+            <p>Configure the cluster connection details for Walk:AI.</p>
+          </div>
+        </div>
+
+        <form className={styles.clusterForm} onSubmit={handleClusterSubmit} autoComplete="off">
+          <label htmlFor="cluster-url">Cluster URL</label>
+          <input
+            id="cluster-url"
+            name="clusterUrl"
+            type="text"
+            value={clusterUrl}
+            onChange={handleClusterFieldChange(setClusterUrl)}
+            placeholder="https://cluster.example.com"
+            autoComplete="off"
+            required
+            disabled={clusterConfigMutation.isPending}
+          />
+
+          <label htmlFor="cluster-token">Cluster token</label>
+          <input
+            id="cluster-token"
+            name="clusterToken"
+            type="password"
+            value={clusterToken}
+            onChange={handleClusterFieldChange(setClusterToken)}
+            autoComplete="new-password"
+            required
+            disabled={clusterConfigMutation.isPending}
+          />
+
+          <button type="submit" disabled={clusterConfigMutation.isPending}>
+            {clusterConfigMutation.isPending ? 'Saving…' : 'Save cluster'}
+          </button>
+
+          {clusterError ? <p className={styles.fieldError}>{clusterError}</p> : null}
+          {clusterSuccess ? <p className={styles.success}>{clusterSuccess}</p> : null}
+        </form>
+      </section>
+    ) : null}
+    </>
   )
 }
 
