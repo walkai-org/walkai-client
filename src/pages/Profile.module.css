@@ -99,7 +99,18 @@
   gap: 0.75rem;
 }
 
+.clusterForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .tokenForm label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.clusterForm label {
   font-weight: 600;
   color: #0f172a;
 }
@@ -119,7 +130,21 @@
   transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
+.clusterForm input {
+  border: 1px solid #cbd5f5;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
 .tokenFormRow input:focus-visible {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.clusterForm input:focus-visible {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
@@ -147,10 +172,39 @@
   transform: none;
 }
 
+.clusterForm button {
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.clusterForm button:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.clusterForm button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+  transform: none;
+}
+
 .fieldError {
   margin: 0;
   color: #b91c1c;
   font-size: 0.875rem;
+}
+
+.success {
+  margin: 0;
+  color: #15803d;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .tokenNotice {
