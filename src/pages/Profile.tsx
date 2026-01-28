@@ -521,7 +521,7 @@ const Profile = (): JSX.Element => {
             </div>
           </div>
 
-          <form className={styles.clusterForm} onSubmit={handleClusterSubmit}>
+          <form className={styles.clusterForm} onSubmit={handleClusterSubmit} autoComplete="off">
             <label htmlFor="cluster-url">Cluster URL</label>
             <input
               id="cluster-url"
@@ -530,6 +530,7 @@ const Profile = (): JSX.Element => {
               value={clusterUrl}
               onChange={handleClusterFieldChange(setClusterUrl)}
               placeholder="https://cluster.example.com"
+              autoComplete="off"
               required
               disabled={clusterConfigMutation.isPending}
             />
@@ -541,6 +542,7 @@ const Profile = (): JSX.Element => {
               type="password"
               value={clusterToken}
               onChange={handleClusterFieldChange(setClusterToken)}
+              autoComplete="new-password"
               required
               disabled={clusterConfigMutation.isPending}
             />
