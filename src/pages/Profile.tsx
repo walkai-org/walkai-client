@@ -123,7 +123,7 @@ const deletePersonalAccessToken = async (tokenId: number): Promise<void> => {
 
 const submitClusterConfig = async (clusterUrl: string, clusterToken: string): Promise<void> => {
   const response = await fetch(`${API_BASE}/cluster/cluster-config`, {
-    method: 'POST',
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ cluster_url: clusterUrl, cluster_token: clusterToken }),
@@ -462,48 +462,6 @@ const Profile = (): JSX.Element => {
           </div>
         </section>
 
-        {isAdmin ? (
-          <section className={styles.card} aria-labelledby="profile-cluster">
-            <div className={styles.cardHeader}>
-              <div>
-                <h2 id="profile-cluster">Cluster</h2>
-                <p>Configure the cluster connection details for Walk:AI.</p>
-              </div>
-            </div>
-
-            <form className={styles.clusterForm} onSubmit={handleClusterSubmit}>
-              <label htmlFor="cluster-url">Cluster URL</label>
-              <input
-                id="cluster-url"
-                name="clusterUrl"
-                type="text"
-                value={clusterUrl}
-                onChange={handleClusterFieldChange(setClusterUrl)}
-                placeholder="https://cluster.example.com"
-                required
-                disabled={clusterConfigMutation.isPending}
-              />
-
-              <label htmlFor="cluster-token">Cluster token</label>
-              <input
-                id="cluster-token"
-                name="clusterToken"
-                type="password"
-                value={clusterToken}
-                onChange={handleClusterFieldChange(setClusterToken)}
-                required
-                disabled={clusterConfigMutation.isPending}
-              />
-
-              <button type="submit" disabled={clusterConfigMutation.isPending}>
-                {clusterConfigMutation.isPending ? 'Saving…' : 'Save cluster'}
-              </button>
-
-              {clusterError ? <p className={styles.fieldError}>{clusterError}</p> : null}
-              {clusterSuccess ? <p className={styles.success}>{clusterSuccess}</p> : null}
-            </form>
-          </section>
-        ) : null}
       </div>
 
       <section className={styles.card} aria-labelledby="profile-usage">
@@ -553,6 +511,49 @@ const Profile = (): JSX.Element => {
           </>
         )}
       </section>
+
+      {isAdmin ? (
+        <section className={styles.card} aria-labelledby="profile-cluster">
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 id="profile-cluster">Cluster</h2>
+              <p>Configure the cluster connection details for Walk:AI.</p>
+            </div>
+          </div>
+
+          <form className={styles.clusterForm} onSubmit={handleClusterSubmit}>
+            <label htmlFor="cluster-url">Cluster URL</label>
+            <input
+              id="cluster-url"
+              name="clusterUrl"
+              type="text"
+              value={clusterUrl}
+              onChange={handleClusterFieldChange(setClusterUrl)}
+              placeholder="https://cluster.example.com"
+              required
+              disabled={clusterConfigMutation.isPending}
+            />
+
+            <label htmlFor="cluster-token">Cluster token</label>
+            <input
+              id="cluster-token"
+              name="clusterToken"
+              type="password"
+              value={clusterToken}
+              onChange={handleClusterFieldChange(setClusterToken)}
+              required
+              disabled={clusterConfigMutation.isPending}
+            />
+
+            <button type="submit" disabled={clusterConfigMutation.isPending}>
+              {clusterConfigMutation.isPending ? 'Saving…' : 'Save cluster'}
+            </button>
+
+            {clusterError ? <p className={styles.fieldError}>{clusterError}</p> : null}
+            {clusterSuccess ? <p className={styles.success}>{clusterSuccess}</p> : null}
+          </form>
+        </section>
+      ) : null}
     </section>
   )
 }
