@@ -4,6 +4,8 @@ import AdminLayout from './layouts/AdminLayout'
 import Invitations from './pages/Invitations'
 import Jobs from './pages/Jobs'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Users from './pages/Users'
 import ProtectedRoute from './components/protected route/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
@@ -19,6 +21,8 @@ const App = (): JSX.Element => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/invitations" element={<Invitations />} />
 
       <Route
