@@ -255,6 +255,8 @@ const InputVolumes = (): JSX.Element => {
 
       setPresignedUrls(urls)
 
+      let hasUploadErrors = false
+
       for (let index = 0; index < selectedFiles.length; index += 1) {
         const file = selectedFiles[index]
         setUploadStatuses((prev) =>
@@ -291,6 +293,7 @@ const InputVolumes = (): JSX.Element => {
             ),
           )
         } catch (error) {
+          hasUploadErrors = true
           setUploadStatuses((prev) =>
             prev.map((entry, entryIndex) =>
               entryIndex === index
@@ -309,6 +312,9 @@ const InputVolumes = (): JSX.Element => {
       }
 
       setFileInputResetKey((prev) => prev + 1)
+      if (!hasUploadErrors) {
+        setIsCreateModalOpen(false)
+      }
     } catch (error) {
       setUploadError(getErrorMessage(error, 'Unable to create volume and upload files right now.'))
       setUploadStatuses((prev) =>
@@ -368,12 +374,7 @@ const InputVolumes = (): JSX.Element => {
       </header>
 
       <div className={styles.grid}>
-        <section className={styles.card} aria-labelledby="input-volumes">
-          <div className={styles.cardHeading}>
-            <div>
-              <h2 id="input-volumes">Input Volumes</h2>
-            </div>
-          </div>
+        <section className={styles.card} aria-label="Input volumes list">
 
           {inputVolumesQuery.isPending ? <p className={styles.state}>Loading input volumes…</p> : null}
 

@@ -25,6 +25,20 @@
   justify-content: center;
 }
 
+.brandLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.brandLink:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 4px;
+  border-radius: 0.75rem;
+}
+
 .brand img {
   max-width: 260px;
   width: 100%;

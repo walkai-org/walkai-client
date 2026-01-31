@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent, JSX, MouseEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchSession, type SessionUser } from '../api/session'
 import styles from './Users.module.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE;
@@ -90,6 +91,14 @@ const Users = (): JSX.Element => {
     refetchInterval: USERS_REFETCH_INTERVAL_MS,
     refetchIntervalInBackground: true,
   })
+  const sessionQuery = useQuery<SessionUser, Error>({
+    queryKey: ['session'],
+    queryFn: fetchSession,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
+    retry: false,
+  })
 
   const [isInviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -149,6 +158,7 @@ const Users = (): JSX.Element => {
       setQuotaError(error.message || 'Failed to update quota.')
     },
   })
+  const isAdmin = sessionQuery.data?.role === 'admin'
 
   useEffect(() => {
     if (!inviteFeedback) return
@@ -255,9 +265,13 @@ const Users = (): JSX.Element => {
           <h1>Users</h1>
           <p>Manage user roles, invitations, and access controls.</p>
         </div>
-        <button type="button" className={styles.primaryAction} onClick={handleOpenInvite}>
-          Invite User
-        </button>
+        {isAdmin ? (
+          <div className={styles.cardActions}>
+            <button type="button" className={styles.primaryAction} onClick={handleOpenInvite}>
+              Invite User
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {inviteFeedback ? (
@@ -285,27 +299,29 @@ const Users = (): JSX.Element => {
               <th scope="col">High priority quota (min)</th>
               <th scope="col">High priority used (min)</th>
               <th scope="col">Quota resets at</th>
-              <th scope="col" className={styles.actionsCol}>
-                Actions
-              </th>
+              {isAdmin ? (
+                <th scope="col" className={styles.actionsCol}>
+                  Actions
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
             {isLoadingUsers ? (
               <tr>
-                <td colSpan={7} className={styles.tableMessage}>
+                <td colSpan={isAdmin ? 7 : 6} className={styles.tableMessage}>
                   Loading users...
                 </td>
               </tr>
             ) : isUsersError ? (
               <tr>
-                <td colSpan={7} className={styles.tableMessageError}>
+                <td colSpan={isAdmin ? 7 : 6} className={styles.tableMessageError}>
                   {getErrorMessage(usersError, 'Unable to load users. Please try again later.')}
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={7} className={styles.tableMessage}>
+                <td colSpan={isAdmin ? 7 : 6} className={styles.tableMessage}>
                   No users found.
                 </td>
               </tr>
@@ -319,24 +335,26 @@ const Users = (): JSX.Element => {
                     <td>{high_priority_quota_minutes.toLocaleString()}</td>
                     <td>{high_priority_minutes_used.toLocaleString()}</td>
                     <td>{formatQuotaResetAt(quota_resets_at)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.inlineButton}
-                        onClick={() =>
-                          handleOpenQuotaModal({
-                            id,
-                            email,
-                            role,
-                            high_priority_quota_minutes,
-                            high_priority_minutes_used,
-                            quota_resets_at,
-                          })
-                        }
-                      >
-                        Edit quota
-                      </button>
-                    </td>
+                    {isAdmin ? (
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.inlineButton}
+                          onClick={() =>
+                            handleOpenQuotaModal({
+                              id,
+                              email,
+                              role,
+                              high_priority_quota_minutes,
+                              high_priority_minutes_used,
+                              quota_resets_at,
+                            })
+                          }
+                        >
+                          Edit quota
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ),
               )

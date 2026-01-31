@@ -17,6 +17,7 @@ export type SidebarNavItem = {
 type SidebarProps = {
   items: SidebarNavItem[]
   title?: ReactNode
+  titleTo?: string
   profileItem?: SidebarNavItem
   onLogout?: () => void
   logoutLabel?: string
@@ -26,6 +27,7 @@ type SidebarProps = {
 const Sidebar = ({
   items,
   title,
+  titleTo,
   profileItem,
   onLogout,
   logoutLabel = 'Log out',
@@ -37,7 +39,15 @@ const Sidebar = ({
     <aside className={styles.sidebar}>
       {title ? (
         <div className={styles.identity}>
-          <div className={styles.brand}>{title}</div>
+          <div className={styles.brand}>
+            {titleTo ? (
+              <NavLink to={titleTo} className={styles.brandLink} aria-label="Go to dashboard">
+                {title}
+              </NavLink>
+            ) : (
+              title
+            )}
+          </div>
         </div>
       ) : null}
       <nav className={styles.nav} aria-label="Admin navigation">

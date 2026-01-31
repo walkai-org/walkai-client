@@ -760,17 +760,18 @@ const Jobs = (): JSX.Element => {
   return (
     <section className={styles.jobs}>
       <header className={styles.header}>
-        <h1>Jobs</h1>
-        <p>Review recent jobs and inspect their most recent runs.</p>
-      </header>
-
-      <section className={styles.section}>
-        <div className={styles.sectionHeading}>
-          <h2>Jobs</h2>
+        <div>
+          <h1>Jobs</h1>
+          <p>Review recent jobs and inspect their most recent runs.</p>
+        </div>
+        <div className={styles.cardActions}>
           <button type="button" className={styles.primaryAction} onClick={handleOpenModal}>
             Submit Job
           </button>
         </div>
+      </header>
+
+      <section className={styles.section} aria-label="Jobs list">
 
         {successMessage ? (
           <div className={`${styles.formFeedback} ${styles.formFeedbackSuccess}`} role="status" aria-live="polite">
