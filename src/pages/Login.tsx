@@ -17,6 +17,7 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
 
 const Login = (): JSX.Element => {
   const [formState, setFormState] = useState<LoginFormState>({ email: '', password: '' })
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const loginMutation = useMutation<void, Error, LoginFormState>({
@@ -61,6 +62,7 @@ const Login = (): JSX.Element => {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (loginMutation.isPending) return
+    setError(null)
     try {
       await loginMutation.mutateAsync({
         email: formState.email,
@@ -68,17 +70,18 @@ const Login = (): JSX.Element => {
       })
       navigate('/app', { replace: true })
     } catch (error) {
-      window.alert(getErrorMessage(error, 'Login failed'))
+      setError(getErrorMessage(error, 'Login failed'))
     }
   }
 
   const handleGithubLogin = async () => {
     if (githubLoginMutation.isPending) return
+    setError(null)
     try {
       const authorizeUrl = await githubLoginMutation.mutateAsync()
       window.location.href = authorizeUrl
     } catch (error) {
-      alert(getErrorMessage(error, 'GitHub login failed'))
+      setError(getErrorMessage(error, 'GitHub login failed'))
     }
   }
 
@@ -86,7 +89,7 @@ const Login = (): JSX.Element => {
     <AuthLayout>
       <div className={styles.header}>
         <h2>Sign in</h2>
-        <p>Use your admin credentials to continue.</p>
+        <p>Use your credentials to continue.</p>
       </div>
 
       <form className={styles.form} onSubmit={handleSubmit}>
@@ -122,6 +125,8 @@ const Login = (): JSX.Element => {
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+
+      {error ? <p className={styles.error}>{error}</p> : null}
 
       <footer className={styles.footer}>
         <Link to="/forgot-password">Forgot password?</Link>

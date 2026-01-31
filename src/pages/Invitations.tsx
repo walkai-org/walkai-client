@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { ChangeEvent, FormEvent, JSX } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import AuthLayout from '../layouts/AuthLayout'
 import styles from './Invitations.module.css'
@@ -38,6 +38,7 @@ const Invitations = (): JSX.Element => {
   const navigate = useNavigate()
 
   const [err, setErr] = useState<string | null>(null)
+  const [status, setStatus] = useState<'idle' | 'submitted'>('idle')
   const [formState, setFormState] = useState<InvitationFormState>({ password: '', confirmPassword: '' })
   const [forceExpired, setForceExpired] = useState(false)
 
@@ -138,19 +139,18 @@ const Invitations = (): JSX.Element => {
     }
 
     if (formState.password.trim().length < 8) {
-      alert('Password must be at least 8 characters long.')
+      setErr('Password must be at least 8 characters long.')
       return
     }
 
     if (formState.password !== formState.confirmPassword) {
-      alert('Passwords do not match.')
+      setErr('Passwords do not match.')
       return
     }
 
     try {
       await acceptInvitationMutation.mutateAsync({ token: invitationToken, password: formState.password })
-      alert('Account created')
-      navigate('/')
+      setStatus('submitted')
     } catch (error) {
       if (error instanceof Error && 'code' in error) {
         const invitationError = error as InvitationError
@@ -194,7 +194,7 @@ const Invitations = (): JSX.Element => {
           <p className={styles.error}>
             {invitationStatus === 'expired' ? 'Your invitation has expired or was already used' : 'Missing invitation token.'}
           </p>
-          <button onClick={() => navigate('/')}>Go to login</button>
+          <button className={styles.primaryButton} onClick={() => navigate('/')}>Go to login</button>
         </div>
       </AuthLayout>
     )
@@ -206,8 +206,22 @@ const Invitations = (): JSX.Element => {
         <div className={styles.header}>
           <h2>Something went wrong</h2>
           <p className={styles.error}>Please try again later.</p>
-          <button onClick={() => navigate('/')}>Go to login</button>
+          <button className={styles.primaryButton} onClick={() => navigate('/')}>Go to login</button>
         </div>
+      </AuthLayout>
+    )
+  }
+
+  if (status === 'submitted') {
+    return (
+      <AuthLayout>
+        <div className={styles.header}>
+          <h2>Account created</h2>
+          <p className={styles.info}>Your account is ready. You can now sign in.</p>
+        </div>
+        <footer className={styles.footer}>
+          <Link to="/">Back to sign in</Link>
+        </footer>
       </AuthLayout>
     )
   }

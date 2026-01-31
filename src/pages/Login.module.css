@@ -66,6 +66,11 @@
   cursor: progress;
 }
 
+.error {
+  margin: 0;
+  color: #fca5a5;
+}
+
 .footer {
   display: flex;
   justify-content: flex-end;

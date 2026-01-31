@@ -192,7 +192,7 @@ const VolumeDetail = (): JSX.Element => {
     [volumeId],
   )
 
-  const headerTitle = volume ? `Volume ${volume.is_input ? 'Input' : 'Output'} #${volume.id}` : `Volume #${volumeId || 'Unknown'}`
+  const headerTitle = volume ? `${volume.is_input ? 'Input' : 'Output'} Volume #${volume.id}` : `Volume #${volumeId || 'Unknown'}`
   const volumeSubtitle = volume
     ? `PVC ${volume.pvc_name} (${volume.size} Gi)`
     : 'Explore the objects stored for this volume.'

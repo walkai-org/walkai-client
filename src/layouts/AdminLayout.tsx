@@ -74,6 +74,7 @@ const AdminLayout = (): JSX.Element => {
       <Sidebar
         items={navItems}
         title={<img src={logo} alt="Walk:AI logo" />}
+        titleTo="/app/dashboard"
         profileItem={profileItem}
         onLogout={handleLogout}
         logoutLabel={isLoggingOut ? 'Logging out...' : 'Log out'}
