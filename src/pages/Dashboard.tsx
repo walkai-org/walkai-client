@@ -44,6 +44,7 @@ type ClusterPod = {
   namespace: string
   status: string
   gpu: GPUProfile
+  priority: PodPriority
   start_time: string | null
   finish_time: string | null
 }
@@ -75,6 +76,37 @@ const formatStatusLabel = (status: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
 
+type PodPriority = 'low' | 'medium' | 'high' | 'extra-high'
+
+const POD_PRIORITIES: PodPriority[] = ['low', 'medium', 'high', 'extra-high']
+const PRIORITY_LABELS: Record<PodPriority, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  'extra-high': 'Extra high',
+}
+const PRIORITY_STYLE_MAP: Record<PodPriority, string> = {
+  low: styles.priorityLow,
+  medium: styles.priorityMedium,
+  high: styles.priorityHigh,
+  'extra-high': styles.priorityExtraHigh,
+}
+
+const isPodPriority = (value: unknown): value is PodPriority =>
+  typeof value === 'string' && POD_PRIORITIES.includes(value as PodPriority)
+
+const formatPriorityLabel = (priority: string | null | undefined): string => {
+  if (!priority) return 'Unknown'
+  if (isPodPriority(priority)) return PRIORITY_LABELS[priority]
+  return formatStatusLabel(priority)
+}
+
+const getPriorityClassName = (priority: string | null | undefined): string => {
+  const normalized = isPodPriority(priority) ? priority : null
+  const modifier = normalized ? PRIORITY_STYLE_MAP[normalized] : styles.priorityUnknown
+  return `${styles.priorityBadge} ${modifier}`.trim()
+}
+
 const getStatusStyleKey = (
   status: string,
 ): 'running' | 'pending' | 'terminating' | 'failed' | 'succeeded' | 'unknown' => {
@@ -95,6 +127,7 @@ const isClusterPod = (value: unknown): value is ClusterPod => {
   const namespace = record.namespace
   const status = record.status
   const gpu = record.gpu
+  const priority = record.priority
   const startTime = record.start_time
   const finishTime = record.finish_time
 
@@ -109,6 +142,7 @@ const isClusterPod = (value: unknown): value is ClusterPod => {
     typeof status === 'string' &&
     status.length > 0 &&
     isGpuProfile &&
+    isPodPriority(priority) &&
     isDateValue(startTime) &&
     isDateValue(finishTime)
   )
@@ -328,6 +362,7 @@ const Dashboard = (): JSX.Element => {
                   <th scope="col">Pod</th>
                   <th scope="col">Namespace</th>
                   <th scope="col">GPU</th>
+                  <th scope="col">Priority</th>
                   <th scope="col">Status</th>
                   <th scope="col">Started</th>
                   <th scope="col">Finished</th>
@@ -335,7 +370,15 @@ const Dashboard = (): JSX.Element => {
               </thead>
               <tbody>
                 {pods.map((pod) => {
-                  const { name, namespace, status, gpu, start_time: startTime, finish_time: finishTime } = pod
+                  const {
+                    name,
+                    namespace,
+                    status,
+                    gpu,
+                    priority,
+                    start_time: startTime,
+                    finish_time: finishTime,
+                  } = pod
                   return (
                     <tr
                       key={`${namespace}-${name}`}
@@ -352,6 +395,9 @@ const Dashboard = (): JSX.Element => {
                       <td className={styles.monospace}>{namespace}</td>
                       <td>
                         <span className={styles.gpuBadge}>{formatGpuLabel(gpu)}</span>
+                      </td>
+                      <td>
+                        <span className={getPriorityClassName(priority)}>{formatPriorityLabel(priority)}</span>
                       </td>
                       <td>
                         <span className={getStatusClassName(status)}>{formatStatusLabel(status)}</span>

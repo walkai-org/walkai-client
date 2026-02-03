@@ -2,11 +2,19 @@ import { GPU_PROFILE_ORDER, getProfileOrder, type GPUProfile } from '../constant
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
+export type PodPriority = 'low' | 'medium' | 'high' | 'extra-high'
+
+const POD_PRIORITIES: PodPriority[] = ['low', 'medium', 'high', 'extra-high']
+
+const isPodPriority = (value: unknown): value is PodPriority =>
+  typeof value === 'string' && POD_PRIORITIES.includes(value as PodPriority)
+
 export type ClusterPod = {
   name: string
   namespace: string
   status: string
   gpu: GPUProfile
+  priority: PodPriority
   start_time: string | null
   finish_time: string | null
 }
@@ -19,6 +27,7 @@ const isClusterPod = (value: unknown): value is ClusterPod => {
   const namespace = record.namespace
   const status = record.status
   const gpu = record.gpu
+  const priority = record.priority
   const startTime = record.start_time
   const finishTime = record.finish_time
 
@@ -33,6 +42,7 @@ const isClusterPod = (value: unknown): value is ClusterPod => {
     typeof status === 'string' &&
     status.length > 0 &&
     isGpuProfile &&
+    isPodPriority(priority) &&
     isDateValue(startTime) &&
     isDateValue(finishTime)
   )
