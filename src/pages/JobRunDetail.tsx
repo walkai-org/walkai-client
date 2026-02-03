@@ -21,6 +21,7 @@ type VolumeInfo = {
 type JobRunDetailRecord = {
   id: number
   status: string
+  image?: string | null
   k8s_pod_name: string
   k8s_job_name: string
   started_at: string | null
@@ -49,10 +50,12 @@ const isJobRunDetail = (value: unknown): value is JobRunDetailRecord => {
   const record = value as Record<string, unknown>
 
   const isNullableString = (input: unknown) => input === null || typeof input === 'string'
+  const isOptionalString = (input: unknown) => input === undefined || isNullableString(input)
 
   return (
     typeof record.id === 'number' &&
     typeof record.status === 'string' &&
+    isOptionalString(record.image) &&
     typeof record.k8s_pod_name === 'string' &&
     typeof record.k8s_job_name === 'string' &&
     isNullableString(record.started_at) &&
@@ -371,6 +374,10 @@ const JobRunDetail = (): JSX.Element => {
                 <div>
                   <dt>Attempts</dt>
                   <dd>{run.attempts}</dd>
+                </div>
+                <div>
+                  <dt>Image</dt>
+                  <dd className={styles.monospace}>{run.image ?? '—'}</dd>
                 </div>
                 <div>
                   <dt>K8s Job</dt>
