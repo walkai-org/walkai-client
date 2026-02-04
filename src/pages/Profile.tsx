@@ -423,7 +423,7 @@ const Profile = (): JSX.Element => {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        walkai-cli README
+                        walk:ai CLI README
                       </a>
                       .
                     </p>
