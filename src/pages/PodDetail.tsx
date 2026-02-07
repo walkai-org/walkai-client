@@ -35,7 +35,7 @@ const formatStatusLabel = (status: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
 
-type PodPriority = ClusterPod['priority']
+type PodPriority = Exclude<ClusterPod['priority'], null>
 
 const POD_PRIORITIES: PodPriority[] = ['low', 'medium', 'high', 'extra-high']
 const PRIORITY_LABELS: Record<PodPriority, string> = {

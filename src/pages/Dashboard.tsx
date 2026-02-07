@@ -44,7 +44,7 @@ type ClusterPod = {
   namespace: string
   status: string
   gpu: GPUProfile
-  priority: PodPriority
+  priority: PodPriority | null
   start_time: string | null
   finish_time: string | null
 }
@@ -142,7 +142,7 @@ const isClusterPod = (value: unknown): value is ClusterPod => {
     typeof status === 'string' &&
     status.length > 0 &&
     isGpuProfile &&
-    isPodPriority(priority) &&
+    (priority === null || isPodPriority(priority)) &&
     isDateValue(startTime) &&
     isDateValue(finishTime)
   )
