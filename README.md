@@ -1,20 +1,90 @@
 # walkai-client
 
-Bootstrapped with [Vite](https://vite.dev/) and the React template.
+Frontend client for the `walk:ai` platform, built with React, TypeScript, Vite, and React Query.
 
-## React + Vite
+## Stack
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+- React 19 + TypeScript (strict mode)
+- Vite 7
+- React Router 7
+- TanStack Query 5
+- ESLint 9 + `typescript-eslint`
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Node.js 20+ (recommended)
+- npm 10+ (recommended)
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies:
 
-## Expanding the ESLint configuration
+   ```bash
+   npm install
+   ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+2. Configure environment variables:
+
+   ```bash
+   cp .env.development .env.local
+   ```
+
+3. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Open `http://localhost:5173`.
+
+## Environment Variables
+
+Only one environment variable is required:
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `VITE_API_BASE` | Base URL used by client API calls | `/api` (dev, through Vite proxy) or `https://api.walkaiorg.app` (prod) |
+
+Current defaults in this repository:
+
+- `.env.development`: `VITE_API_BASE=/api`
+- `.env.production`: `VITE_API_BASE=https://api.walkaiorg.app`
+
+## API Proxy (Development)
+
+When running `npm run dev`, Vite proxies `/api/*` to `http://127.0.0.1:8000/*` and removes the `/api` prefix.
+
+Example:
+
+- Client request: `/api/login`
+- Proxied backend request: `http://127.0.0.1:8000/login`
+
+## Available Scripts
+
+- `npm run dev` - start Vite dev server with HMR
+- `npm run build` - create production build in `dist/`
+- `npm run preview` - preview the production build locally
+- `npm run lint` - run ESLint checks
+
+## Project Structure
+
+```text
+src/
+  api/                # API clients and request helpers
+  components/         # Reusable UI pieces (cards, sidebar, icons, guards)
+  layouts/            # Auth and admin layouts
+  pages/              # Route-level pages
+  constants/          # Shared constants
+public/               # Static assets
+```
+
+## Quality Checks
+
+Run these before opening a PR:
+
+```bash
+npm run lint
+npm run build
+```
+
+Note: there is currently no `npm test` script configured.
